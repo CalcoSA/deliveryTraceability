@@ -1,4 +1,6 @@
 from app.api.applicationUserController import router as applicationUserRouter
+from app.api.deliveryReportController import router as deliveryReportRouter
+from app.api.deliveryRecordController import router as deliveryRecordRouter
 from app.api.domiciliaryController import router as domiciliaryRouter
 from app.api.menuOptionController import router as menuOptionRouter
 from app.api.pointSaleController import router as pointSaleRouter
@@ -34,6 +36,8 @@ app.include_router(menuOptionRouter)
 app.include_router(applicationUserRouter)
 app.include_router(authRouter)
 app.include_router(parameterRouter)
+app.include_router(deliveryRecordRouter)
+app.include_router(deliveryReportRouter)
 
 @app.get("/")
 def root():
