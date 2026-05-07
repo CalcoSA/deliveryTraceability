@@ -12,4 +12,9 @@ export const authService = {
     const response = await apiClient.get<ApiResponse<AuthResult>>("/auth/me");
     return response.data;
   },
+
+  async intranetAccess(userLogin: string, ts: string, sig: string): Promise<ApiResponse<AuthResult>> {
+    const response = await apiClient.get<ApiResponse<AuthResult>>("/auth/intranet-access", { params: { userLogin, ts, sig, }, });
+    return response.data;
+  },
 };

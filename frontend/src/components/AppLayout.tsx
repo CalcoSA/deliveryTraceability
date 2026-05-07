@@ -523,8 +523,6 @@ function Sidebar({ sidebarOpen, onToggleSidebar }: SidebarProps) {
                   {roleName}
                 </Typography>
               </Box>
-
-              <KeyboardArrowDownIcon sx={{ color: "#F7E8D8" }} />
             </>
           )}
         </Box>

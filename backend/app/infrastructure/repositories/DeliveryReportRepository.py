@@ -1,0 +1,135 @@
+from app.domain.interfaces.IDeliveryReportRepository import IDeliveryReportRepository
+from app.domain.entities.DeliverySettlement import DeliverySettlement
+from app.domain.entities.ApplicationUser import ApplicationUser
+from app.domain.entities.DeliveryRecord import DeliveryRecord
+from app.domain.entities.Domiciliary import Domiciliary
+from app.domain.entities.pointSale import pointSale
+from sqlalchemy.orm import Session, aliased
+from typing import List, Optional
+from sqlalchemy import func, case
+from decimal import Decimal
+from datetime import date
+
+class DeliveryReportRepository(IDeliveryReportRepository):
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def getSettlementReport(self, startDate: date, endDate: date, period: str, IdPointSale: Optional[int] = None, IdDomiciliary: Optional[int] = None) -> List[dict]:
+        periodExpression = self._getPeriodExpression(period)
+        CreatedUser = aliased(ApplicationUser)
+        parameterNameExpression = func.coalesce(DeliverySettlement.parameterNameSettlement, "Costo")
+        parameterValueExpression = func.coalesce(DeliverySettlement.parameterValueSettlement, 0)
+        totalDeliveryQuantityExpression = func.sum(func.coalesce(DeliverySettlement.deliveryQuantitySettlement, 0))
+        totalValueSettlementExpression = func.sum(func.coalesce(DeliverySettlement.totalValueSettlement, 0))
+        totalRestDaysExpression = func.sum(case((DeliveryRecord.isRestDay == True, 1), else_=0))
+        query = (
+            self.db.query(
+                periodExpression.label("periodKey"),
+                pointSale.IdPointSale.label("IdPointSale"),
+                pointSale.codePointSale.label("codePointSale"),
+                pointSale.namePointSale.label("namePointSale"),
+                Domiciliary.IdDomiciliary.label("IdDomiciliary"),
+                Domiciliary.documentDomiciliary.label("documentDomiciliary"),
+                Domiciliary.nameDomiciliary.label("nameDomiciliary"),
+                parameterNameExpression.label("parameterNameSettlement"),
+                parameterValueExpression.label("parameterValueSettlement"),
+                totalDeliveryQuantityExpression.label("totalDeliveryQuantity"),
+                totalRestDaysExpression.label("totalRestDays"),
+                totalValueSettlementExpression.label("totalValueSettlement"),
+                func.count(DeliveryRecord.IdDeliveryRecord).label("totalRecords"),
+                func.group_concat(func.distinct(CreatedUser.wordpressUserLogin)).label("createdByUsers"))
+            .select_from(DeliveryRecord)
+            .outerjoin(
+                DeliverySettlement,
+                DeliverySettlement.IdDeliveryRecord == DeliveryRecord.IdDeliveryRecord
+            )
+            .join(
+                pointSale,
+                pointSale.IdPointSale == DeliveryRecord.IdPointSale
+            )
+            .join(
+                Domiciliary,
+                Domiciliary.IdDomiciliary == DeliveryRecord.IdDomiciliary
+            )
+            .outerjoin(
+                CreatedUser,
+                CreatedUser.wordpressUserId == DeliveryRecord.createdByDeliveryRecord
+            )
+            .filter(DeliveryRecord.deliveryDate >= startDate)
+            .filter(DeliveryRecord.deliveryDate <= endDate)
+        )
+
+        if IdPointSale is not None:
+            query = query.filter(DeliveryRecord.IdPointSale == IdPointSale)
+
+        if IdDomiciliary is not None:
+            query = query.filter(DeliveryRecord.IdDomiciliary == IdDomiciliary)
+
+        rows = (
+            query
+            .group_by(
+                periodExpression,
+                pointSale.IdPointSale,
+                pointSale.codePointSale,
+                pointSale.namePointSale,
+                Domiciliary.IdDomiciliary,
+                Domiciliary.documentDomiciliary,
+                Domiciliary.nameDomiciliary,
+                parameterNameExpression,
+                parameterValueExpression
+            )
+            .order_by(
+                pointSale.namePointSale.asc(),
+                pointSale.codePointSale.asc(),
+                periodExpression.asc(),
+                Domiciliary.nameDomiciliary.asc()
+            )
+            .all()
+        )
+
+        return [
+            {
+                "periodType": period,
+                "periodKey": str(row.periodKey),
+                "periodLabel": self._getPeriodLabel(period, row.periodKey),
+                "IdPointSale": row.IdPointSale,
+                "codePointSale": row.codePointSale,
+                "namePointSale": row.namePointSale,
+                "IdDomiciliary": row.IdDomiciliary,
+                "documentDomiciliary": row.documentDomiciliary,
+                "nameDomiciliary": row.nameDomiciliary,
+                "parameterNameSettlement": row.parameterNameSettlement,
+                "parameterValueSettlement": row.parameterValueSettlement or Decimal("0"),
+                "totalDeliveryQuantity": int(row.totalDeliveryQuantity or 0),
+                "totalRestDays": int(row.totalRestDays or 0),
+                "totalValueSettlement": row.totalValueSettlement or Decimal("0"),
+                "totalRecords": int(row.totalRecords or 0),
+                "createdByUsers": row.createdByUsers,
+            }
+            for row in rows
+        ]
+
+    def _getPeriodExpression(self, period: str):
+        if period == "day":
+            return func.date_format(DeliveryRecord.deliveryDate, "%Y-%m-%d")
+
+        if period == "week":
+            return func.yearweek(DeliveryRecord.deliveryDate, 3)
+
+        if period == "month":
+            return func.date_format(DeliveryRecord.deliveryDate, "%Y-%m")
+
+        return func.date_format(DeliveryRecord.deliveryDate, "%Y-%m-%d")
+
+    def _getPeriodLabel(self, period: str, periodKey) -> str:
+        if period == "day":
+            return str(periodKey)
+
+        if period == "week":
+            return f"Semana {periodKey}"
+
+        if period == "month":
+            return str(periodKey)
+
+        return str(periodKey)
