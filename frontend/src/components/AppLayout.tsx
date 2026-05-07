@@ -1,4 +1,4 @@
-import { Avatar, Box, Button, Collapse, Divider, IconButton, Tooltip, Typography, } from "@mui/material";
+import { Avatar, Box, Button, Collapse, Divider, IconButton, Tooltip, Typography, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, } from "@mui/material";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import DashboardCustomizeOutlinedIcon from "@mui/icons-material/DashboardCustomizeOutlined";
 import DeliveryDiningOutlinedIcon from "@mui/icons-material/DeliveryDiningOutlined";
@@ -19,6 +19,8 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import CoffeeIcon from "@mui/icons-material/Coffee";
 import { type ReactNode, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+
+import CloseIcon from "@mui/icons-material/Close";
 
 interface MenuItem {
   label: string;
@@ -74,6 +76,111 @@ const mainItems: MenuItem[] = [
     icon: <AssessmentOutlinedIcon />,
   },
 ];
+
+type HelpPath = "/registro-domicilios" | "/reporte-domicilios";
+
+interface HelpStep {
+  title: string;
+  description: string;
+}
+
+interface HelpContent {
+  title: string;
+  description: string;
+  steps: HelpStep[];
+  recommendations: string[];
+}
+
+const getHelpPathFromCurrentRoute = (pathname: string): HelpPath => {
+  if (pathname === "/reporte-domicilios") {
+    return "/reporte-domicilios";
+  }
+
+  return "/registro-domicilios";
+};
+
+const helpContentByPath: Record<HelpPath, HelpContent> = {
+  "/registro-domicilios": {
+    title: "Instructivo - Registro de domicilios",
+    description:
+      "Esta opción permite registrar los domicilios realizados por cada domiciliario, según la fecha y el punto de venta seleccionado.",
+    steps: [
+      {
+        title: "Selecciona la fecha",
+        description:
+          "Elige la fecha correspondiente al día que deseas registrar. Por defecto, el sistema puede cargar la fecha actual.",
+      },
+      {
+        title: "Selecciona el punto de venta",
+        description:
+          "Escoge el punto de venta al que pertenecen los domiciliarios. Al seleccionarlo, el sistema cargará los domiciliarios activos asociados.",
+      },
+      {
+        title: "Registra los domicilios",
+        description:
+          "Ingresa la cantidad de domicilios realizados por cada domiciliario. El campo solo permite valores numéricos.",
+      },
+      {
+        title: "Marca descanso si aplica",
+        description:
+          "Si un domiciliario no trabajó ese día, marca la casilla de descanso. En ese caso no será necesario ingresar cantidad de domicilios.",
+      },
+      {
+        title: "Guarda los registros",
+        description:
+          "Cuando todos los domiciliarios tengan una cantidad registrada o estén marcados como descanso, presiona el botón de guardar.",
+      },
+    ],
+    recommendations: [
+      "Verifica la fecha antes de guardar.",
+      "Todos los domiciliarios deben tener cantidad de domicilios o descanso marcado.",
+      "Si seleccionaste mal el punto de venta, limpia el formulario y vuelve a iniciar.",
+    ],
+  },
+
+  "/reporte-domicilios": {
+    title: "Instructivo - Reporte de domicilios",
+    description:
+      "Esta opción permite consultar y exportar la información de domicilios registrados, usando filtros por fecha, periodo, punto de venta y domiciliario.",
+    steps: [
+      {
+        title: "Selecciona el rango de fechas",
+        description:
+          "Define la fecha inicial y la fecha final del reporte. La fecha final no debe ser menor que la fecha inicial.",
+      },
+      {
+        title: "Selecciona el periodo",
+        description:
+          "Elige cómo deseas consultar la información: por día, semana o mes.",
+      },
+      {
+        title: "Filtra por punto de venta",
+        description:
+          "Puedes consultar todos los puntos de venta o seleccionar uno específico para revisar información más detallada.",
+      },
+      {
+        title: "Filtra por domiciliario si aplica",
+        description:
+          "Si seleccionas un punto de venta, también puedes consultar un domiciliario específico.",
+      },
+      {
+        title: "Consulta la información",
+        description:
+          "Presiona el botón de consultar para cargar el reporte según los filtros seleccionados.",
+      },
+      {
+        title: "Exporta el reporte",
+        description:
+          "Cuando el reporte tenga información, puedes descargarlo en Excel usando el botón de exportar.",
+      },
+    ],
+    recommendations: [
+      "Primero consulta el reporte antes de exportarlo.",
+      "Si no aparecen datos, valida que existan registros para el rango de fechas seleccionado.",
+      "Usa los filtros para encontrar información más específica.",
+    ],
+  },
+};
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -609,101 +716,440 @@ function Header() {
 }
 
 function Footer() {
+  const location = useLocation();
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [selectedHelpPath, setSelectedHelpPath] = useState<HelpPath>(() =>
+    getHelpPathFromCurrentRoute(location.pathname)
+  );
+
+  const selectedHelpContent = helpContentByPath[selectedHelpPath];
+
+  const handleOpenHelp = () => {
+    setSelectedHelpPath(getHelpPathFromCurrentRoute(location.pathname));
+    setHelpOpen(true);
+  };
+
+  const handleCloseHelp = () => {
+    setHelpOpen(false);
+  };
+
   return (
-    <Box
-      sx={{
-        bgcolor: "#4B2E1F",
-        color: "#F7E8D8",
-        px: 5,
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        alignItems: "center",
-        columnGap: 4,
-        minHeight: 95,
-        overflow: "hidden",
-      }}
-    >
+    <>
       <Box
         sx={{
-          display: "flex",
-          flexDirection: "column",
+          bgcolor: "#4B2E1F",
+          color: "#F7E8D8",
+          px: 5,
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
           alignItems: "center",
-          gap: 1.5,
-          minWidth: 0,
+          columnGap: 4,
+          minHeight: 95,
+          overflow: "hidden",
         }}
       >
-        <Typography
-          sx={{
-            fontSize: 15,
-            mt: 1,
-            textAlign: "center",
-          }}
-        >
-          © Compañía de Alimentos Colombianos Calco S.A - Todos los derechos
-          reservados
-        </Typography>
-
         <Box
           sx={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            gap: 2.5,
+            gap: 1.5,
+            minWidth: 0,
           }}
         >
-          <IconButton sx={{ color: "#F7E8D8" }}>
-            <FacebookIcon />
-          </IconButton>
-
-          <IconButton sx={{ color: "#F7E8D8" }}>
-            <InstagramIcon />
-          </IconButton>
-
-          <IconButton sx={{ color: "#F7E8D8" }}>
-            <LanguageIcon />
-          </IconButton>
-
-          <Divider
-            orientation="vertical"
-            flexItem
-            sx={{ borderColor: "rgba(247,232,216,0.35)" }}
-          />
-
-          <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
-            Términos y condiciones
+          <Typography
+            sx={{
+              fontSize: 15,
+              mt: 1,
+              textAlign: "center",
+            }}
+          >
+            © Compañía de Alimentos Colombianos Calco S.A - Todos los derechos
+            reservados
           </Typography>
 
-          <Divider
-            orientation="vertical"
-            flexItem
-            sx={{ borderColor: "rgba(247,232,216,0.35)" }}
-          />
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2.5,
+            }}
+          >
+            <IconButton
+              component="a"
+              href="https://web.facebook.com/CrepesyWafflesOficial/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Ir a FacebookIcon"
+              sx={{ color: "#F7E8D8" }}
+            >
+              <FacebookIcon />
+            </IconButton>
 
-          <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
-            Privacidad
-          </Typography>
+            <IconButton
+              component="a"
+              href="https://www.instagram.com/crepesywaffles/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Ir a Instagram"
+              sx={{ color: "#F7E8D8" }}
+            >
+              <InstagramIcon />
+            </IconButton>
 
-          <Divider
-            orientation="vertical"
-            flexItem
-            sx={{ borderColor: "rgba(247,232,216,0.35)" }}
-          />
+            <IconButton
+              component="a"
+              href="https://calcoweb.net/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Ir a CalcoWeb"
+              sx={{ color: "#F7E8D8" }}
+            >
+              <LanguageIcon />
+            </IconButton>
 
-          <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
-            Ayuda
-          </Typography>
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{ borderColor: "rgba(247,232,216,0.35)" }}
+            />
+
+            <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
+              Términos y condiciones
+            </Typography>
+
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{ borderColor: "rgba(247,232,216,0.35)" }}
+            />
+
+            <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
+              Privacidad
+            </Typography>
+
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{ borderColor: "rgba(247,232,216,0.35)" }}
+            />
+
+            <Typography
+              onClick={handleOpenHelp}
+              sx={{
+                fontSize: 14,
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+              }}
+            >
+              Ayuda
+            </Typography>
+          </Box>
         </Box>
+
+        <Box
+          component="img"
+          src="/images/waffle-footer.png"
+          alt="Waffle"
+          sx={{
+            width: 145,
+            opacity: 0.45,
+            display: { xs: "none", md: "block" },
+          }}
+        />
       </Box>
 
-      <Box
-        component="img"
-        src="/images/waffle-footer.png"
-        alt="Waffle"
-        sx={{
-          width: 145,
-          opacity: 0.45,
-          display: { xs: "none", md: "block" },
-        }}
-      />
-    </Box>
+        <Dialog
+          open={helpOpen}
+          onClose={handleCloseHelp}
+          fullWidth
+          maxWidth="md"
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: 3,
+                overflow: "hidden",
+                bgcolor: "#FFFDF8",
+              },
+            },
+          }}
+        >
+        <DialogTitle
+          sx={{
+            bgcolor: "#4B2E1F",
+            color: "#F7E8D8",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            py: 2,
+            px: 3,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+              Ayuda del sistema
+            </Typography>
+          </Box>
+
+          <IconButton
+            onClick={handleCloseHelp}
+            sx={{
+              color: "#F7E8D8",
+              "&:hover": {
+                bgcolor: "rgba(247,232,216,0.12)",
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ p: 3 }}>
+            <Typography
+              sx={{
+                color: "#6A4A38",
+                fontSize: 14,
+                lineHeight: 1.6,
+                mb: 2,
+              }}
+            >
+              Actualmente el sistema cuenta con instructivos para las opciones
+              de Registro de domicilios y Reporte de domicilios.
+            </Typography>
+
+            <Stack
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 1.5,
+                mb: 3,
+              }}
+            >
+              <Button
+                variant={
+                  selectedHelpPath === "/registro-domicilios"
+                    ? "contained"
+                    : "outlined"
+                }
+                startIcon={<AssignmentOutlinedIcon />}
+                onClick={() => setSelectedHelpPath("/registro-domicilios")}
+                sx={{
+                  textTransform: "none",
+                  justifyContent: "flex-start",
+                  fontWeight: 600,
+                  borderColor: "#8B6A55",
+                  bgcolor:
+                    selectedHelpPath === "/registro-domicilios"
+                      ? "#4B2E1F"
+                      : "transparent",
+                  color:
+                    selectedHelpPath === "/registro-domicilios"
+                      ? "#FFFFFF"
+                      : "#4B2E1F",
+                  "&:hover": {
+                    borderColor: "#4B2E1F",
+                    bgcolor:
+                      selectedHelpPath === "/registro-domicilios"
+                        ? "#3A2318"
+                        : "rgba(75, 46, 31, 0.05)",
+                  },
+                }}
+              >
+                Registro de domicilios
+              </Button>
+
+              <Button
+                variant={
+                  selectedHelpPath === "/reporte-domicilios"
+                    ? "contained"
+                    : "outlined"
+                }
+                startIcon={<AssessmentOutlinedIcon />}
+                onClick={() => setSelectedHelpPath("/reporte-domicilios")}
+                sx={{
+                  textTransform: "none",
+                  justifyContent: "flex-start",
+                  fontWeight: 600,
+                  borderColor: "#8B6A55",
+                  bgcolor:
+                    selectedHelpPath === "/reporte-domicilios"
+                      ? "#4B2E1F"
+                      : "transparent",
+                  color:
+                    selectedHelpPath === "/reporte-domicilios"
+                      ? "#FFFFFF"
+                      : "#4B2E1F",
+                  "&:hover": {
+                    borderColor: "#4B2E1F",
+                    bgcolor:
+                      selectedHelpPath === "/reporte-domicilios"
+                        ? "#3A2318"
+                        : "rgba(75, 46, 31, 0.05)",
+                  },
+                }}
+              >
+                Reporte de domicilios
+              </Button>
+            </Stack>
+
+            <Typography
+              sx={{
+                color: "#4B2E1F",
+                fontSize: 19,
+                fontWeight: 700,
+                mb: 1,
+              }}
+            >
+              {selectedHelpContent.title}
+            </Typography>
+
+            <Typography
+              sx={{
+                color: "#4B2E1F",
+                fontSize: 15,
+                lineHeight: 1.7,
+                mb: 3,
+              }}
+            >
+              {selectedHelpContent.description}
+            </Typography>
+
+            <Typography
+              sx={{
+                color: "#4B2E1F",
+                fontSize: 17,
+                fontWeight: 700,
+                mb: 1.5,
+              }}
+            >
+              Paso a paso
+            </Typography>
+
+            <Stack spacing={1.5}>
+              {selectedHelpContent.steps.map((step, index) => (
+                <Paper
+                  key={step.title}
+                  elevation={0}
+                  sx={{
+                    border: "1px solid #E0CDBB",
+                    borderRadius: 2,
+                    p: 2,
+                    display: "grid",
+                    gridTemplateColumns: "42px 1fr",
+                    gap: 2,
+                    bgcolor: "#FFFFFF",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: "50%",
+                      bgcolor: "#4B2E1F",
+                      color: "#F7E8D8",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                      fontSize: 15,
+                    }}
+                  >
+                    {index + 1}
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: "#4B2E1F",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        mb: 0.5,
+                      }}
+                    >
+                      {step.title}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        color: "#6A4A38",
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {step.description}
+                    </Typography>
+                  </Box>
+                </Paper>
+              ))}
+            </Stack>
+
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 3,
+                border: "1px solid #E0CDBB",
+                borderRadius: 2,
+                p: 2,
+                bgcolor: "#FFF8EF",
+              }}
+            >
+              <Typography
+                sx={{
+                  color: "#4B2E1F",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  mb: 1,
+                }}
+              >
+                Recomendaciones
+              </Typography>
+
+              <Stack spacing={0.8}>
+                {selectedHelpContent.recommendations.map((item) => (
+                  <Typography
+                    key={item}
+                    sx={{
+                      color: "#6A4A38",
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    • {item}
+                  </Typography>
+                ))}
+              </Stack>
+            </Paper>
+          </Box>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: "1px solid #E0CDBB",
+            bgcolor: "#FFF8EF",
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={handleCloseHelp}
+            sx={{
+              bgcolor: "#4B2E1F",
+              color: "#FFFFFF",
+              textTransform: "none",
+              fontWeight: 600,
+              px: 3,
+              "&:hover": {
+                bgcolor: "#3A2318",
+              },
+            }}
+          >
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
