@@ -5,22 +5,22 @@ import { apiClient } from "./apiClient";
 
 export const roleService = {
   async getAll(): Promise<ApiResponse<Role[]>> {
-    const response = await apiClient.get<ApiResponse<Role[]>>("/role");
+    const response = await apiClient.get<ApiResponse<Role[]>>("/role/");
     return response.data;
   },
 
   async getMenuOptions(): Promise<ApiResponse<MenuOption[]>> {
-    const response = await apiClient.get<ApiResponse<MenuOption[]>>("/menu-option");
+    const response = await apiClient.get<ApiResponse<MenuOption[]>>("/menu-option/");
     return response.data;
   },
 
   async getMenuOptionsByRole(roleId: number): Promise<ApiResponse<MenuOption[]>> {
-    const response = await apiClient.get<ApiResponse<MenuOption[]>>(`/role/${roleId}/menu-options`);
+    const response = await apiClient.get<ApiResponse<MenuOption[]>>(`/role/${roleId}/menu-options/`);
     return response.data;
   },
 
   async create(data: RoleCreate): Promise<ApiResponse<Role>> {
-    const response = await apiClient.post<ApiResponse<Role>>("/role", data);
+    const response = await apiClient.post<ApiResponse<Role>>("/role/", data);
     return response.data;
   },
 

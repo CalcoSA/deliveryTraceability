@@ -5,12 +5,12 @@ import { apiClient } from "./apiClient";
 export const parameterService = {
 
   async getAll(): Promise<ApiResponse<Parameter[]>> {
-    const response = await apiClient.get<ApiResponse<Parameter[]>>("/parameter");
+    const response = await apiClient.get<ApiResponse<Parameter[]>>("/parameter/");
     return response.data;
   },
 
   async create(data: ParameterCreate): Promise<ApiResponse<Parameter>> {
-    const response = await apiClient.post<ApiResponse<Parameter>>("/parameter", data);
+    const response = await apiClient.post<ApiResponse<Parameter>>("/parameter/", data);
     return response.data;
   },
 
