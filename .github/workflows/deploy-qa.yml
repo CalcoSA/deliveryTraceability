@@ -20,18 +20,26 @@ jobs:
 
       - name: Create backend env file
         run: |
-          printf "%s\n" "${{ secrets.BACKEND_ENV_QA }}" > backend/.env
+          cat > backend/.env << 'EOF'
+          ${{ secrets.BACKEND_ENV_QA }}
+          EOF
+
+          chmod 600 backend/.env
 
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          printf "%s\n" "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_rsa
+
+          cat > ~/.ssh/id_rsa << 'EOF'
+          ${{ secrets.VM_SSH_KEY }}
+          EOF
+
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
 
       - name: Create QA folder on VM
         run: |
-          ssh "$VM_USER@$VM_HOST" "mkdir -p $QA_PATH"
+          ssh "$VM_USER@$VM_HOST" "mkdir -p '$QA_PATH'"
 
       - name: Sync project to QA
         run: |
@@ -45,7 +53,7 @@ jobs:
       - name: Deploy QA with Docker Compose
         run: |
           ssh "$VM_USER@$VM_HOST" "
-            cd $QA_PATH &&
+            cd '$QA_PATH' &&
             docker compose -f docker-compose.qa.yml up -d --build --remove-orphans &&
             docker image prune -f
           "
