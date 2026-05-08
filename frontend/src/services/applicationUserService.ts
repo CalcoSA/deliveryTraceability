@@ -5,17 +5,17 @@ import { apiClient } from "./apiClient";
 export const applicationUserService = {
 
   async searchWordpressUsers(search: string): Promise<ApiResponse<WordpressUser[]>> {
-    const response = await apiClient.get<ApiResponse<WordpressUser[]>>("/application-user/wordpress-users", { params: { search }, });
+    const response = await apiClient.get<ApiResponse<WordpressUser[]>>("/application-user/wordpress-users/", { params: { search }, });
     return response.data;
   },
 
   async getAll(): Promise<ApiResponse<ApplicationUser[]>> {
-    const response = await apiClient.get<ApiResponse<ApplicationUser[]>>("/application-user");
+    const response = await apiClient.get<ApiResponse<ApplicationUser[]>>("/application-user/");
     return response.data;
   },
 
   async create(data: ApplicationUserCreate): Promise<ApiResponse<ApplicationUser>> {
-    const response = await apiClient.post<ApiResponse<ApplicationUser>>("/application-user", data);
+    const response = await apiClient.post<ApiResponse<ApplicationUser>>("/application-user/", data);
     return response.data;
   },
 

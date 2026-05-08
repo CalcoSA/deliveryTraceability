@@ -19,7 +19,7 @@ export const deliveryReportService = {
       params.IdDomiciliary = filters.IdDomiciliary;
     }
 
-    const response = await apiClient.get<ApiResponse<DeliverySettlementReport[]>>("/delivery-report/settlement", { params });
+    const response = await apiClient.get<ApiResponse<DeliverySettlementReport[]>>("/delivery-report/settlement/", { params });
     return response.data;
   },
 };
