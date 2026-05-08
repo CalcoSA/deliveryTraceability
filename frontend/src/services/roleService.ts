@@ -15,7 +15,7 @@ export const roleService = {
   },
 
   async getMenuOptionsByRole(roleId: number): Promise<ApiResponse<MenuOption[]>> {
-    const response = await apiClient.get<ApiResponse<MenuOption[]>>(`/role/${roleId}/menu-options/`);
+    const response = await apiClient.get<ApiResponse<MenuOption[]>>(`/role/${roleId}/menu-options`);
     return response.data;
   },
 
