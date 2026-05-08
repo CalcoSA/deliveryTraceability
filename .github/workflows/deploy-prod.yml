@@ -20,18 +20,26 @@ jobs:
 
       - name: Create backend env file
         run: |
-          printf "%s\n" "${{ secrets.BACKEND_ENV_PROD }}" > backend/.env
+          cat > backend/.env << 'EOF'
+          ${{ secrets.BACKEND_ENV_PROD }}
+          EOF
+
+          chmod 600 backend/.env
 
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          printf "%s\n" "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_rsa
+
+          cat > ~/.ssh/id_rsa << 'EOF'
+          ${{ secrets.VM_SSH_KEY }}
+          EOF
+
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
 
       - name: Create PROD folder on VM
         run: |
-          ssh "$VM_USER@$VM_HOST" "mkdir -p $PROD_PATH"
+          ssh "$VM_USER@$VM_HOST" "mkdir -p '$PROD_PATH'"
 
       - name: Sync project to PROD
         run: |
@@ -45,7 +53,7 @@ jobs:
       - name: Deploy Production with Docker Compose
         run: |
           ssh "$VM_USER@$VM_HOST" "
-            cd $PROD_PATH &&
+            cd '$PROD_PATH' &&
             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans &&
             docker image prune -f
           "
