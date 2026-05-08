@@ -4,7 +4,7 @@ import { apiClient } from "./apiClient";
 
 export const deliveryRecordService = {
   async createBulk(data: DeliveryRecordBulkCreate): Promise<ApiResponse<DeliveryRecord[]>> {
-    const response = await apiClient.post<ApiResponse<DeliveryRecord[]>>("/delivery-record/bulk", data);
+    const response = await apiClient.post<ApiResponse<DeliveryRecord[]>>("/delivery-record/bulk/", data);
     return response.data;
   },
 };

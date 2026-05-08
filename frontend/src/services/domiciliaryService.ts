@@ -15,7 +15,7 @@ export const domiciliaryService = {
       params.statusDomiciliary = filters.statusDomiciliary;
     }
 
-    const response = await apiClient.get<ApiResponse<Domiciliary[]>>("/domiciliary", { params });
+    const response = await apiClient.get<ApiResponse<Domiciliary[]>>("/domiciliary/", { params });
     return response.data;
   },
 
@@ -30,7 +30,7 @@ export const domiciliaryService = {
   },
 
   async create(data: DomiciliaryCreate): Promise<ApiResponse<Domiciliary>> {
-    const response = await apiClient.post<ApiResponse<Domiciliary>>("/domiciliary", data);
+    const response = await apiClient.post<ApiResponse<Domiciliary>>("/domiciliary/", data);
     return response.data;
   },
 

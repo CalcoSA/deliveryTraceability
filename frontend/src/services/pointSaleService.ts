@@ -5,7 +5,7 @@ import { apiClient } from "./apiClient";
 export const pointSaleService = {
 
   async getAll(): Promise<ApiResponse<PointSale[]>> {
-    const response = await apiClient.get<ApiResponse<PointSale[]>>("/pointSale");
+    const response = await apiClient.get<ApiResponse<PointSale[]>>("/pointSale/");
     return response.data;
   },
 
@@ -15,7 +15,7 @@ export const pointSaleService = {
   },
 
   async create(data: PointSaleCreate): Promise<ApiResponse<PointSale>> {
-    const response = await apiClient.post<ApiResponse<PointSale>>("/pointSale", data);
+    const response = await apiClient.post<ApiResponse<PointSale>>("/pointSale/", data);
     return response.data;
   },
 
