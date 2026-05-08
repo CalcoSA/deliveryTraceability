@@ -11,10 +11,16 @@ from app.application.services.JwtService import JwtService
 from app.domain.dtos.apiResponseDto import apiResponseDto
 from app.infrastructure.db.connection import getDb
 from sqlalchemy.orm import Session
+import logging
 import jwt
+import os
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
+
+logger = logging.getLogger(__name__)
+
+APP_ENV = os.getenv("APP_ENV", "production")
 
 def getAuthApplication(db: Session = Depends(getDb), wpDb: Session = Depends(getWordpressDb)) -> IAuthApplication:
     applicationUserRepository = ApplicationUserRepository(db)
@@ -22,6 +28,14 @@ def getAuthApplication(db: Session = Depends(getDb), wpDb: Session = Depends(get
     wordpressPasswordVerifier = WordpressPasswordVerifier()
     return AuthApplication(applicationUserRepository, wordpressUserRepository, wordpressPasswordVerifier)
 
+def getSafeLoginUser(loginData: LoginDto) -> str:
+    return (
+        getattr(loginData, "userLogin", None)
+        or getattr(loginData, "username", None)
+        or getattr(loginData, "email", None)
+        or getattr(loginData, "user", None)
+        or "N/A"
+    )
 
 def getCurrentPayload(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     try:
@@ -45,9 +59,15 @@ def login(loginData: LoginDto, service: IAuthApplication = Depends(getAuthApplic
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al iniciar sesión.")
+    except Exception as e:
+        safeUser = getSafeLoginUser(loginData)
+        logger.exception("Error inesperado al iniciar sesión. Usuario=%s", safeUser)
+        detail = "Error al iniciar sesión."
 
+        if APP_ENV in ["development", "qa", "local"]:
+            detail = f"Error al iniciar sesión: {str(e)}"
+
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
 
 @router.get("/intranet-access", response_model=apiResponseDto[AuthResponseDto])
 def intranetAccess(userLogin: str = Query(...), ts: int = Query(...), sig: str = Query(...), service: IAuthApplication = Depends(getAuthApplication)):
@@ -58,8 +78,15 @@ def intranetAccess(userLogin: str = Query(...), ts: int = Query(...), sig: str =
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al validar el acceso desde intranet.")
+    except Exception as e:
+        logger.exception("Error inesperado al validar acceso desde intranet. Usuario=%s", userLogin)
+
+        detail = "Error al validar el acceso desde intranet."
+
+        if APP_ENV in ["development", "qa", "local"]:
+            detail = f"Error al validar el acceso desde intranet: {str(e)}"
+
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
 
 @router.get("/me", response_model=apiResponseDto[AuthResponseDto])
 def me(payload: dict = Depends(getCurrentPayload), service: IAuthApplication = Depends(getAuthApplication)):
@@ -70,5 +97,12 @@ def me(payload: dict = Depends(getCurrentPayload), service: IAuthApplication = D
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al obtener el usuario autenticado.")
+    except Exception as e:
+        logger.exception("Error inesperado al obtener usuario autenticado. Payload=%s", payload)
+
+        detail = "Error al obtener el usuario autenticado."
+
+        if APP_ENV in ["development", "qa", "local"]:
+            detail = f"Error al obtener el usuario autenticado: {str(e)}"
+
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
