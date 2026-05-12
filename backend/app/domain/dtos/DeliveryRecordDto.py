@@ -1,22 +1,22 @@
+from app.domain.dtos.AbsenceTypeDto import AbsenceTypeResponseDto
 from pydantic import BaseModel, ConfigDict
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
-from typing import List
 
 class DeliveryRecordCreateDto(BaseModel):
     deliveryDate: date
     IdPointSale: int
     IdDomiciliary: int
     deliveryQuantity: Optional[int] = None
-    isRestDay: bool = False
+    IdAbsenceType: Optional[int] = None
 
 class DeliveryRecordUpdateDto(BaseModel):
     deliveryDate: Optional[date] = None
     IdPointSale: Optional[int] = None
     IdDomiciliary: Optional[int] = None
     deliveryQuantity: Optional[int] = None
-    isRestDay: Optional[bool] = None
+    IdAbsenceType: Optional[int] = None
 
 class DeliverySettlementResponseDto(BaseModel):
     IdDeliverySettlement: int
@@ -38,8 +38,9 @@ class DeliveryRecordResponseDto(BaseModel):
     deliveryDate: date
     IdPointSale: int
     IdDomiciliary: int
-    deliveryQuantity: Optional[int] = None
-    isRestDay: bool
+    deliveryQuantity: int
+    IdAbsenceType: Optional[int] = None
+    absenceType: Optional[AbsenceTypeResponseDto] = None
     createdByDeliveryRecord: int
     createdAtDeliveryRecord: datetime
     updatedByDeliveryRecord: Optional[int] = None
@@ -51,7 +52,7 @@ class DeliveryRecordResponseDto(BaseModel):
 class DeliveryRecordBulkItemCreateDto(BaseModel):
     IdDomiciliary: int
     deliveryQuantity: Optional[int] = None
-    isRestDay: bool = False
+    IdAbsenceType: Optional[int] = None
 
 class DeliveryRecordBulkCreateDto(BaseModel):
     deliveryDate: date

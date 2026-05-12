@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from decimal import Decimal
 from typing import Optional
 
@@ -15,7 +15,10 @@ class DeliverySettlementReportResponseDto(BaseModel):
     parameterNameSettlement: str
     parameterValueSettlement: Decimal
     totalDeliveryQuantity: int
-    totalRestDays: int
+    totalAbsences: int
+    absenceTypes: str = ""
     totalValueSettlement: Decimal
     totalRecords: int
     createdByUsers: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

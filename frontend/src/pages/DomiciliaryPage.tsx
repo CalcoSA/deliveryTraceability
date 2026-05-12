@@ -56,6 +56,10 @@ export function DomiciliaryPage() {
   const isCreate = modalMode === "create";
   const firstSearchRender = useRef(true);
 
+  const getOnlyNumbers = (value: string) => {
+    return value.replace(/\D/g, "").slice(0, 15);
+  };
+
   const showResponseModal = (severity: ResponseModalSeverity, title: string, message: string) => {
     setResponseModal({
       open: true,
@@ -216,6 +220,10 @@ export function DomiciliaryPage() {
         setValidationError("El documento del domiciliario es obligatorio.");
         return;
       }
+      if (!/^\d+$/.test(documentDomiciliary)) {
+        setValidationError("El documento solo puede contener números.");
+        return;
+      }
       if (documentDomiciliary.length > 15) {
         setValidationError("El documento no puede tener más de 15 caracteres.");
         return;
@@ -331,7 +339,7 @@ export function DomiciliaryPage() {
           value={searchDocument}
           fullWidth
           slotProps={{
-            htmlInput: { maxLength: 15 },
+            htmlInput: { maxLength: 15, inputMode: "numeric", pattern: "[0-9]*", },
             input: {
               startAdornment: (
                 <InputAdornment position="start">
@@ -346,8 +354,7 @@ export function DomiciliaryPage() {
             },
           }}
           onChange={(event) => {
-            const value = event.target.value.slice(0, 15);
-            setSearchDocument(value);
+            setSearchDocument(getOnlyNumbers(event.target.value));
           }}
         />
 
@@ -513,7 +520,7 @@ export function DomiciliaryPage() {
               disabled={saving}
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 15, },}}
+              slotProps={{ htmlInput: { maxLength: 15, inputMode: "numeric", pattern: "[0-9]*", },}}
               onChange={(event) =>
                 setForm((prev) => ({
                   ...prev,

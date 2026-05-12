@@ -3,6 +3,7 @@ from app.infrastructure.db.connection import Base
 from app.domain.entities.pointSale import pointSale
 from app.domain.entities.Parameter import Parameter
 from app.domain.entities.MenuOption import MenuOption
+from app.domain.entities.AbsenceType import AbsenceType
 from app.domain.entities.Domiciliary import Domiciliary
 from app.domain.entities.DeliveryRecord import DeliveryRecord
 from app.domain.entities.RoleMenuOption import RoleMenuOption

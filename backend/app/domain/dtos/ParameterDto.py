@@ -20,3 +20,16 @@ class ParameterResponseDto(BaseModel):
     updatedAtParameter: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class ParameterHistoryResponseDto(BaseModel):
+    IdParameterHistory: int
+    IdParameter: int
+    actionParameterHistory: str
+    previousNameParameter: Optional[str] = None
+    newNameParameter: Optional[str] = None
+    previousValueParameter: Optional[str] = None
+    newValueParameter: Optional[str] = None
+    createdByParameterHistory: str
+    createdAtParameterHistory: datetime
+
+    model_config = ConfigDict(from_attributes=True)

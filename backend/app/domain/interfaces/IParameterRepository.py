@@ -1,4 +1,5 @@
 from app.domain.dtos.ParameterDto import ParameterCreateDto, ParameterUpdateDto
+from app.domain.entities.ParameterHistory import ParameterHistory
 from app.domain.entities.Parameter import Parameter
 from abc import ABC, abstractmethod
 from typing import List, Optional
@@ -15,6 +16,10 @@ class IParameterRepository(ABC):
 
     @abstractmethod
     def getByName(self, nameParameter: str) -> Optional[Parameter]:
+        pass
+
+    @abstractmethod
+    def getHistoryByParameterId(self, IdParameter: int) -> List[ParameterHistory]:
         pass
 
     @abstractmethod
