@@ -80,7 +80,6 @@ def intranetAccess(userLogin: str = Query(...), ts: int = Query(...), sig: str =
 
     except Exception as e:
         logger.exception("Error inesperado al validar acceso desde intranet. Usuario=%s", userLogin)
-
         detail = "Error al validar el acceso desde intranet."
 
         if APP_ENV in ["development", "qa", "local"]:
@@ -99,7 +98,6 @@ def me(payload: dict = Depends(getCurrentPayload), service: IAuthApplication = D
 
     except Exception as e:
         logger.exception("Error inesperado al obtener usuario autenticado. Payload=%s", payload)
-
         detail = "Error al obtener el usuario autenticado."
 
         if APP_ENV in ["development", "qa", "local"]:

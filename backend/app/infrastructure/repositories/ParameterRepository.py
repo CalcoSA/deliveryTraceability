@@ -1,5 +1,6 @@
 from app.domain.dtos.ParameterDto import ParameterCreateDto, ParameterUpdateDto
 from app.domain.interfaces.IParameterRepository import IParameterRepository
+from app.domain.entities.ParameterHistory import ParameterHistory
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from app.domain.entities.Parameter import Parameter
 from datetime import datetime, timedelta, timezone
@@ -23,6 +24,9 @@ class ParameterRepository(IParameterRepository):
 
     def getByName(self, nameParameter: str) -> Optional[Parameter]:
         return (self.db.query(Parameter).filter(Parameter.nameParameter == nameParameter.strip()).first())
+    
+    def getHistoryByParameterId(self, IdParameter: int) -> List[ParameterHistory]:
+        return (self.db.query(ParameterHistory).filter(ParameterHistory.IdParameter == IdParameter).order_by(ParameterHistory.createdAtParameterHistory.desc()).all())
 
     def create(self, parameterData: ParameterCreateDto, userLogin: str) -> Parameter:
         try:
@@ -35,6 +39,18 @@ class ParameterRepository(IParameterRepository):
                 updatedAtParameter=None
             )
             self.db.add(newParameter)
+            self.db.flush()
+            parameterHistory = ParameterHistory(
+                IdParameter=newParameter.IdParameter,
+                actionParameterHistory="CREATED",
+                previousNameParameter=None,
+                newNameParameter=newParameter.nameParameter,
+                previousValueParameter=None,
+                newValueParameter=newParameter.valueParameter,
+                createdByParameterHistory=userLogin,
+                createdAtParameterHistory=self._nowBogota(),
+            )
+            self.db.add(parameterHistory)
             self.db.commit()
             self.db.refresh(newParameter)
             return newParameter
@@ -54,17 +70,45 @@ class ParameterRepository(IParameterRepository):
             if not parameterFound:
                 return None
 
+            previousNameParameter = parameterFound.nameParameter
+            previousValueParameter = parameterFound.valueParameter
+            newNameParameter = previousNameParameter
+            newValueParameter = previousValueParameter
+
             if parameterData.nameParameter is not None:
-                parameterFound.nameParameter = parameterData.nameParameter.strip()
+                newNameParameter = parameterData.nameParameter.strip()
 
             if parameterData.valueParameter is not None:
-                parameterFound.valueParameter = parameterData.valueParameter.strip()
+                newValueParameter = parameterData.valueParameter.strip()
 
+            hasChanges = (previousNameParameter != newNameParameter or previousValueParameter != newValueParameter)
+
+            if not hasChanges:
+                return parameterFound
+
+            now = self._nowBogota()
+
+            parameterFound.nameParameter = newNameParameter
+            parameterFound.valueParameter = newValueParameter
             parameterFound.updatedByParameter = userLogin
-            parameterFound.updatedAtParameter = self._nowBogota()
+            parameterFound.updatedAtParameter = now
+
+            parameterHistory = ParameterHistory(
+                IdParameter=parameterFound.IdParameter,
+                actionParameterHistory="UPDATED",
+                previousNameParameter=previousNameParameter,
+                newNameParameter=newNameParameter,
+                previousValueParameter=previousValueParameter,
+                newValueParameter=newValueParameter,
+                createdByParameterHistory=userLogin,
+                createdAtParameterHistory=now
+            )
+
+            self.db.add(parameterHistory)
 
             self.db.commit()
             self.db.refresh(parameterFound)
+
             return parameterFound
 
         except IntegrityError:

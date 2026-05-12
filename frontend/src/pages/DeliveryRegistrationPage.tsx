@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, } from "@mui/material";
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
@@ -6,8 +6,10 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import { deliveryRecordService } from "../services/deliveryRecordService";
 import { domiciliaryService } from "../services/domiciliaryService";
+import { absenceTypeService } from "../services/absenceTypeService";
 import { pointSaleService } from "../services/pointSaleService";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import type { AbsenceType } from "../models/DeliveryRecord";
 import { getErrorMessage } from "../services/errorService";
 import type { Domiciliary } from "../models/Domiciliary";
 import type { PointSale } from "../models/PointSale";
@@ -18,7 +20,7 @@ interface DomiciliaryDeliveryRow {
   documentDomiciliary: string;
   nameDomiciliary: string;
   deliveryQuantity: string;
-  isRestDay: boolean;
+  IdAbsenceType: number | null;
 }
 
 interface ResponseModalState {
@@ -45,6 +47,8 @@ export function DeliveryRegistrationPage() {
   const [responseModal, setResponseModal] = useState<ResponseModalState>(emptyResponseModal);
   const [selectedPointSaleId, setSelectedPointSaleId] = useState<number>(0);
   const [loadingDomiciliaries, setLoadingDomiciliaries] = useState(false);
+  const [loadingAbsenceTypes, setLoadingAbsenceTypes] = useState(false);
+  const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
   const [loadingPointSales, setLoadingPointSales] = useState(false);
   const [rows, setRows] = useState<DomiciliaryDeliveryRow[]>([]);
   const [pointSales, setPointSales] = useState<PointSale[]>([]);
@@ -66,6 +70,23 @@ export function DeliveryRegistrationPage() {
       ...prev,
       open: false,
     }));
+  };
+
+  const loadAbsenceTypes = async () => {
+    try {
+      setLoadingAbsenceTypes(true);
+      const response = await absenceTypeService.getAll();
+      setAbsenceTypes(response.result ?? []);
+    } catch (err) {
+      setAbsenceTypes([]);
+      showResponseModal(
+        "error",
+        "Error al cargar ausentismos",
+        getErrorMessage(err)
+      );
+    } finally {
+      setLoadingAbsenceTypes(false);
+    }
   };
 
   const loadPointSales = async () => {
@@ -103,7 +124,7 @@ export function DeliveryRegistrationPage() {
           documentDomiciliary: item.documentDomiciliary,
           nameDomiciliary: item.nameDomiciliary,
           deliveryQuantity: "",
-          isRestDay: false,
+          IdAbsenceType: null,
         }))
       );
     } catch (err) {
@@ -146,20 +167,6 @@ export function DeliveryRegistrationPage() {
     );
   };
 
-  const updateRowRestDay = (idDomiciliary: number, checked: boolean) => {
-    setRows((prev) =>
-      prev.map((item) =>
-        item.IdDomiciliary === idDomiciliary
-          ? {
-              ...item,
-              isRestDay: checked,
-              deliveryQuantity: checked ? "" : item.deliveryQuantity,
-            }
-          : item
-      )
-    );
-  };
-
   const validateRowsBeforeSave = () => {
     if (!deliveryDate) {
       return "La fecha es obligatoria.";
@@ -171,7 +178,7 @@ export function DeliveryRegistrationPage() {
       return "El punto de venta seleccionado no tiene domiciliarios activos.";
     }
     const pendingRows = rows.filter((item) => {
-      if (item.isRestDay) return false;
+      if (item.IdAbsenceType) return false;
       const quantity = Number(item.deliveryQuantity);
       return !item.deliveryQuantity || Number.isNaN(quantity) || quantity <= 0;
     });
@@ -179,6 +186,20 @@ export function DeliveryRegistrationPage() {
       return "Debes ingresar el número de domicilios o marcar descanso para todos los domiciliarios.";
     }
     return "";
+  };
+
+  const updateRowAbsenceType = (idDomiciliary: number, idAbsenceType: number | null) => {
+    setRows((prev) =>
+      prev.map((item) =>
+        item.IdDomiciliary === idDomiciliary
+          ? {
+              ...item,
+              IdAbsenceType: idAbsenceType,
+              deliveryQuantity: idAbsenceType ? "0" : item.deliveryQuantity,
+            }
+          : item
+      )
+    );
   };
 
   const handleSaveDeliveryRecords = async () => {
@@ -195,8 +216,8 @@ export function DeliveryRegistrationPage() {
         IdPointSale: selectedPointSaleId,
         records: rows.map((item) => ({
           IdDomiciliary: item.IdDomiciliary,
-          deliveryQuantity: item.isRestDay ? null : Number(item.deliveryQuantity),
-          isRestDay: item.isRestDay,
+          deliveryQuantity: item.IdAbsenceType ? 0 : Number(item.deliveryQuantity),
+          IdAbsenceType: item.IdAbsenceType,
         })),
       });
       if (!response.isSuccess) {
@@ -225,11 +246,12 @@ export function DeliveryRegistrationPage() {
   };
 
   const completedRows = rows.filter(
-    (item) => item.isRestDay || Number(item.deliveryQuantity) > 0
+    (item) => item.IdAbsenceType || Number(item.deliveryQuantity) > 0
   ).length;
 
   useEffect(() => {
     loadPointSales();
+    loadAbsenceTypes();
   }, []);
 
   return (
@@ -462,35 +484,44 @@ export function DeliveryRegistrationPage() {
                     <TextField
                       label="Domicilios"
                       value={item.deliveryQuantity}
-                      disabled={saving || item.isRestDay}
+                      disabled={saving || Boolean(item.IdAbsenceType)}
                       fullWidth
                       size="small"
-                      placeholder={item.isRestDay ? "Descanso" : "Ej: 10"}
+                      placeholder={item.IdAbsenceType ? "0" : "Ej: 10"}
                       onChange={(event) =>
-                        updateRowQuantity(
-                          item.IdDomiciliary,
-                          event.target.value
-                        )
+                        updateRowQuantity(item.IdDomiciliary, event.target.value)
                       }
                     />
                   </TableCell>
 
                   <TableCell align="center">
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={item.isRestDay}
-                          disabled={saving}
-                          onChange={(event) =>
-                            updateRowRestDay(
-                              item.IdDomiciliary,
-                              event.target.checked
-                            )
-                          }
-                        />
-                      }
-                      label={item.isRestDay ? "Descanso" : "No"}
-                    />
+                    <TextField
+                      select
+                      label="Ausentismo"
+                      value={item.IdAbsenceType ?? 0}
+                      fullWidth
+                      size="small"
+                      disabled={saving || loadingAbsenceTypes}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+
+                        updateRowAbsenceType(
+                          item.IdDomiciliary,
+                          value > 0 ? value : null
+                        );
+                      }}
+                    >
+                      <MenuItem value={0}>Sin ausentismo</MenuItem>
+
+                      {absenceTypes.map((absenceType) => (
+                        <MenuItem
+                          key={absenceType.IdAbsenceType}
+                          value={absenceType.IdAbsenceType}
+                        >
+                          {absenceType.nameAbsenceType}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </TableCell>
                 </TableRow>
               ))}

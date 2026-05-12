@@ -2,6 +2,7 @@ from app.domain.dtos.DeliveryRecordDto import DeliveryRecordCreateDto, DeliveryR
 from app.application.interfaces.IDeliveryRecordApplication import IDeliveryRecordApplication
 from app.domain.interfaces.IDeliveryRecordRepository import IDeliveryRecordRepository
 from app.domain.interfaces.IDomiciliaryRepository import IDomiciliaryRepository
+from app.domain.interfaces.IAbsenceTypeRepository import IAbsenceTypeRepository
 from app.domain.interfaces.IParameterRepository import IParameterRepository
 from app.domain.interfaces.IpointSaleRepository import IpointSaleRepository
 from app.domain.entities.DeliveryRecord import DeliveryRecord
@@ -14,11 +15,20 @@ DELIVERY_VALUE_PARAMETER_NAME = "Costo"
 
 class DeliveryRecordApplication(IDeliveryRecordApplication):
 
-    def __init__(self, deliveryRecordRepository: IDeliveryRecordRepository, pointSaleRepository: IpointSaleRepository, domiciliaryRepository: IDomiciliaryRepository, parameterRepository: IParameterRepository):
+    def __init__(self, deliveryRecordRepository: IDeliveryRecordRepository, pointSaleRepository: IpointSaleRepository, domiciliaryRepository: IDomiciliaryRepository, parameterRepository: IParameterRepository, absenceTypeRepository: IAbsenceTypeRepository):
         self.deliveryRecordRepository = deliveryRecordRepository
         self.pointSaleRepository = pointSaleRepository
         self.domiciliaryRepository = domiciliaryRepository
         self.parameterRepository = parameterRepository
+        self.absenceTypeRepository = absenceTypeRepository
+
+    def _fieldWasSent(self, dto, fieldName: str) -> bool:
+        fieldsSet = getattr(dto, "model_fields_set", None)
+
+        if fieldsSet is None:
+            fieldsSet = getattr(dto, "__fields_set__", set())
+
+        return fieldName in fieldsSet
 
     def getAll(self, deliveryDate: Optional[date] = None, IdPointSale: Optional[int] = None,IdDomiciliary: Optional[int] = None) -> List[DeliveryRecord]:
         return self.deliveryRecordRepository.getAll(deliveryDate, IdPointSale, IdDomiciliary)
@@ -33,7 +43,8 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
 
     def create(self, deliveryData: DeliveryRecordCreateDto, userId: int) -> DeliveryRecord:
         self._validateBaseData(deliveryData.IdPointSale, deliveryData.IdDomiciliary)
-        self._validateDeliveryQuantity(deliveryData.isRestDay, deliveryData.deliveryQuantity)
+        self._validateAbsenceType(deliveryData.IdAbsenceType)
+        self._validateDeliveryQuantity(deliveryData.IdAbsenceType, deliveryData.deliveryQuantity)
 
         duplicate = self.deliveryRecordRepository.getDuplicate(deliveryData.deliveryDate, deliveryData.IdPointSale, deliveryData.IdDomiciliary)
 
@@ -73,9 +84,10 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
             if domiciliaryFound.pointSale != deliveryData.IdPointSale:
                 raise ValueError(f"El domiciliario {domiciliaryFound.nameDomiciliary} no pertenece al punto de venta enviado.")
 
-            self._validateDeliveryQuantity(item.isRestDay, item.deliveryQuantity)
+            self._validateAbsenceType(item.IdAbsenceType)
+            self._validateDeliveryQuantity(item.IdAbsenceType, item.deliveryQuantity)
 
-            if not item.isRestDay:
+            if item.IdAbsenceType is None:
                 hasNormalDelivery = True
 
             duplicate = self.deliveryRecordRepository.getDuplicate(deliveryData.deliveryDate, deliveryData.IdPointSale, item.IdDomiciliary)
@@ -100,10 +112,10 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
         finalIdPointSale = deliveryData.IdPointSale or deliveryRecordFound.IdPointSale
         finalIdDomiciliary = deliveryData.IdDomiciliary or deliveryRecordFound.IdDomiciliary
 
-        finalIsRestDay = (
-            deliveryData.isRestDay
-            if deliveryData.isRestDay is not None
-            else deliveryRecordFound.isRestDay
+        finalIdAbsenceType = (
+            deliveryData.IdAbsenceType
+            if self._fieldWasSent(deliveryData, "IdAbsenceType")
+            else deliveryRecordFound.IdAbsenceType
         )
 
         finalDeliveryQuantity = (
@@ -112,8 +124,12 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
             else deliveryRecordFound.deliveryQuantity
         )
 
+        if finalIdAbsenceType is not None:
+            finalDeliveryQuantity = 0
+
         self._validateBaseData(finalIdPointSale, finalIdDomiciliary)
-        self._validateDeliveryQuantity(finalIsRestDay, finalDeliveryQuantity)
+        self._validateAbsenceType(finalIdAbsenceType)
+        self._validateDeliveryQuantity(finalIdAbsenceType, finalDeliveryQuantity)
 
         duplicate = self.deliveryRecordRepository.getDuplicate(finalDeliveryDate, finalIdPointSale, finalIdDomiciliary, IdDeliveryRecord)
 
@@ -122,7 +138,7 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
 
         parameter = None
 
-        if not finalIsRestDay:
+        if finalIdAbsenceType is None:
             parameter = self._getAndValidateDeliveryValueParameter()
 
         deliveryUpdated = self.deliveryRecordRepository.update(IdDeliveryRecord, deliveryData, userId, parameter)
@@ -154,12 +170,24 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
         if domiciliaryFound.pointSale != IdPointSale:
             raise ValueError("El domiciliario no pertenece al punto de venta enviado.")
 
-    def _validateDeliveryQuantity(self, isRestDay: bool, deliveryQuantity: Optional[int]) -> None:
-        if isRestDay:
+    def _validateAbsenceType(self, IdAbsenceType: Optional[int]) -> None:
+        if IdAbsenceType is None:
+            return
+
+        absenceType = self.absenceTypeRepository.getById(IdAbsenceType)
+
+        if not absenceType:
+            raise ValueError("El tipo de ausentismo no existe.")
+
+        if not absenceType.statusAbsenceType:
+            raise ValueError("El tipo de ausentismo está inactivo.")
+
+    def _validateDeliveryQuantity(self, IdAbsenceType: Optional[int], deliveryQuantity: Optional[int]) -> None:
+        if IdAbsenceType is not None:
             return
 
         if deliveryQuantity is None:
-            raise ValueError("El número de domicilios es obligatorio cuando no es descanso.")
+            raise ValueError("El número de domicilios es obligatorio cuando no hay ausentismo.")
 
         if deliveryQuantity <= 0:
             raise ValueError("El número de domicilios debe ser mayor a cero.")

@@ -17,9 +17,17 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
     def _nowBogota(self) -> datetime:
         colombiaTimezone = timezone(timedelta(hours=-5))
         return datetime.now(colombiaTimezone).replace(tzinfo=None)
+    
+    def _fieldWasSent(self, dto, fieldName: str) -> bool:
+        fieldsSet = getattr(dto, "model_fields_set", None)
+
+        if fieldsSet is None:
+            fieldsSet = getattr(dto, "__fields_set__", set())
+
+        return fieldName in fieldsSet
 
     def getAll(self, deliveryDate: Optional[date] = None, IdPointSale: Optional[int] = None, IdDomiciliary: Optional[int] = None) -> List[DeliveryRecord]:
-        query = (self.db.query(DeliveryRecord).options(joinedload(DeliveryRecord.settlement)))
+        query = (self.db.query(DeliveryRecord).options(joinedload(DeliveryRecord.settlement)).options(joinedload(DeliveryRecord.absenceTypeRelation)))
 
         if deliveryDate is not None:
             query = query.filter(DeliveryRecord.deliveryDate == deliveryDate)
@@ -33,7 +41,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
         return (query.order_by(DeliveryRecord.deliveryDate.desc(), DeliveryRecord.IdDeliveryRecord.desc()).all())
 
     def getById(self, IdDeliveryRecord: int) -> Optional[DeliveryRecord]:
-        return (self.db.query(DeliveryRecord).options(joinedload(DeliveryRecord.settlement)).filter(DeliveryRecord.IdDeliveryRecord == IdDeliveryRecord).first())
+        return (self.db.query(DeliveryRecord).options(joinedload(DeliveryRecord.settlement)).options(joinedload(DeliveryRecord.absenceTypeRelation)).filter(DeliveryRecord.IdDeliveryRecord == IdDeliveryRecord).first())
 
     def getDuplicate(self, deliveryDate: date, IdPointSale: int, IdDomiciliary: int, excludeIdDeliveryRecord: Optional[int] = None) -> Optional[DeliveryRecord]:
         query = (self.db.query(DeliveryRecord).filter(DeliveryRecord.deliveryDate == deliveryDate).filter(DeliveryRecord.IdPointSale == IdPointSale).filter(DeliveryRecord.IdDomiciliary == IdDomiciliary))
@@ -46,15 +54,15 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
     def create(self, deliveryData: DeliveryRecordCreateDto, userId: int, parameter: Optional[Parameter]) -> DeliveryRecord:
         try:
             now = self._nowBogota()
-
-            deliveryQuantity = None if deliveryData.isRestDay else deliveryData.deliveryQuantity
+            hasAbsence = deliveryData.IdAbsenceType is not None
+            deliveryQuantity = 0 if hasAbsence else int(deliveryData.deliveryQuantity)
 
             newDeliveryRecord = DeliveryRecord(
                 deliveryDate=deliveryData.deliveryDate,
                 IdPointSale=deliveryData.IdPointSale,
                 IdDomiciliary=deliveryData.IdDomiciliary,
                 deliveryQuantity=deliveryQuantity,
-                isRestDay=deliveryData.isRestDay,
+                IdAbsenceType=deliveryData.IdAbsenceType,
                 createdByDeliveryRecord=userId,
                 createdAtDeliveryRecord=now,
                 updatedByDeliveryRecord=None,
@@ -64,17 +72,16 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
             self.db.add(newDeliveryRecord)
             self.db.flush()
 
-            if not deliveryData.isRestDay and parameter is not None:
+            if not hasAbsence and parameter is not None:
                 parameterValue = Decimal(str(parameter.valueParameter))
-                quantity = int(deliveryData.deliveryQuantity)
-                totalValue = parameterValue * Decimal(quantity)
+                totalValue = parameterValue * Decimal(deliveryQuantity)
 
                 newSettlement = DeliverySettlement(
                     IdDeliveryRecord=newDeliveryRecord.IdDeliveryRecord,
                     IdParameter=parameter.IdParameter,
                     parameterNameSettlement=parameter.nameParameter,
                     parameterValueSettlement=parameterValue,
-                    deliveryQuantitySettlement=quantity,
+                    deliveryQuantitySettlement=deliveryQuantity,
                     totalValueSettlement=totalValue,
                     createdBySettlement=userId,
                     createdAtSettlement=now,
@@ -103,14 +110,15 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
             createdIds = []
 
             for item in records:
-                deliveryQuantity = None if item.isRestDay else item.deliveryQuantity
+                hasAbsence = item.IdAbsenceType is not None
+                deliveryQuantity = 0 if hasAbsence else int(item.deliveryQuantity)
 
                 newDeliveryRecord = DeliveryRecord(
                     deliveryDate=deliveryDate,
                     IdPointSale=IdPointSale,
                     IdDomiciliary=item.IdDomiciliary,
                     deliveryQuantity=deliveryQuantity,
-                    isRestDay=item.isRestDay,
+                    IdAbsenceType=item.IdAbsenceType,
                     createdByDeliveryRecord=userId,
                     createdAtDeliveryRecord=now,
                     updatedByDeliveryRecord=None,
@@ -122,17 +130,16 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
 
                 createdIds.append(newDeliveryRecord.IdDeliveryRecord)
 
-                if not item.isRestDay and parameter is not None:
+                if not hasAbsence and parameter is not None:
                     parameterValue = Decimal(str(parameter.valueParameter))
-                    quantity = int(item.deliveryQuantity)
-                    totalValue = parameterValue * Decimal(quantity)
+                    totalValue = parameterValue * Decimal(deliveryQuantity)
 
                     newSettlement = DeliverySettlement(
                         IdDeliveryRecord=newDeliveryRecord.IdDeliveryRecord,
                         IdParameter=parameter.IdParameter,
                         parameterNameSettlement=parameter.nameParameter,
                         parameterValueSettlement=parameterValue,
-                        deliveryQuantitySettlement=quantity,
+                        deliveryQuantitySettlement=deliveryQuantity,
                         totalValueSettlement=totalValue,
                         createdBySettlement=userId,
                         createdAtSettlement=now,
@@ -173,16 +180,13 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
             if deliveryData.IdDomiciliary is not None:
                 deliveryRecordFound.IdDomiciliary = deliveryData.IdDomiciliary
 
-            finalIsRestDay = (
-                deliveryData.isRestDay
-                if deliveryData.isRestDay is not None
-                else deliveryRecordFound.isRestDay
-            )
+            if self._fieldWasSent(deliveryData, "IdAbsenceType"):
+                deliveryRecordFound.IdAbsenceType = deliveryData.IdAbsenceType
 
-            deliveryRecordFound.isRestDay = finalIsRestDay
+            hasAbsence = deliveryRecordFound.IdAbsenceType is not None
 
-            if finalIsRestDay:
-                deliveryRecordFound.deliveryQuantity = None
+            if hasAbsence:
+                deliveryRecordFound.deliveryQuantity = 0
 
                 if deliveryRecordFound.settlement:
                     self.db.delete(deliveryRecordFound.settlement)
