@@ -2,6 +2,7 @@ from app.domain.interfaces.IDeliveryReportRepository import IDeliveryReportRepos
 from app.domain.entities.DeliverySettlement import DeliverySettlement
 from app.domain.entities.ApplicationUser import ApplicationUser
 from app.domain.entities.DeliveryRecord import DeliveryRecord
+from app.domain.entities.AbsenceType import AbsenceType
 from app.domain.entities.Domiciliary import Domiciliary
 from app.domain.entities.pointSale import pointSale
 from sqlalchemy.orm import Session, aliased
@@ -22,7 +23,8 @@ class DeliveryReportRepository(IDeliveryReportRepository):
         parameterValueExpression = func.coalesce(DeliverySettlement.parameterValueSettlement, 0)
         totalDeliveryQuantityExpression = func.sum(func.coalesce(DeliverySettlement.deliveryQuantitySettlement, 0))
         totalValueSettlementExpression = func.sum(func.coalesce(DeliverySettlement.totalValueSettlement, 0))
-        totalRestDaysExpression = func.sum(case((DeliveryRecord.isRestDay == True, 1), else_=0))
+        totalAbsencesExpression = func.sum(case((DeliveryRecord.IdAbsenceType.isnot(None), 1), else_=0))
+        absenceTypesExpression = func.group_concat(AbsenceType.nameAbsenceType)
         query = (
             self.db.query(
                 periodExpression.label("periodKey"),
@@ -35,7 +37,8 @@ class DeliveryReportRepository(IDeliveryReportRepository):
                 parameterNameExpression.label("parameterNameSettlement"),
                 parameterValueExpression.label("parameterValueSettlement"),
                 totalDeliveryQuantityExpression.label("totalDeliveryQuantity"),
-                totalRestDaysExpression.label("totalRestDays"),
+                totalAbsencesExpression.label("totalAbsences"),
+                absenceTypesExpression.label("absenceTypes"),
                 totalValueSettlementExpression.label("totalValueSettlement"),
                 func.count(DeliveryRecord.IdDeliveryRecord).label("totalRecords"),
                 func.group_concat(func.distinct(CreatedUser.wordpressUserLogin)).label("createdByUsers"))
@@ -43,6 +46,10 @@ class DeliveryReportRepository(IDeliveryReportRepository):
             .outerjoin(
                 DeliverySettlement,
                 DeliverySettlement.IdDeliveryRecord == DeliveryRecord.IdDeliveryRecord
+            )
+            .outerjoin(
+                AbsenceType,
+                AbsenceType.IdAbsenceType == DeliveryRecord.IdAbsenceType
             )
             .join(
                 pointSale,
@@ -102,7 +109,8 @@ class DeliveryReportRepository(IDeliveryReportRepository):
                 "parameterNameSettlement": row.parameterNameSettlement,
                 "parameterValueSettlement": row.parameterValueSettlement or Decimal("0"),
                 "totalDeliveryQuantity": int(row.totalDeliveryQuantity or 0),
-                "totalRestDays": int(row.totalRestDays or 0),
+                "totalAbsences": int(row.totalAbsences or 0),
+                "absenceTypes": row.absenceTypes or "",
                 "totalValueSettlement": row.totalValueSettlement or Decimal("0"),
                 "totalRecords": int(row.totalRecords or 0),
                 "createdByUsers": row.createdByUsers,

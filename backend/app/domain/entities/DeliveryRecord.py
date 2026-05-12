@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Boolean, Date, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Date, DateTime, ForeignKey, UniqueConstraint
 from app.infrastructure.db.connection import Base
 from sqlalchemy.orm import relationship
 
@@ -9,8 +9,8 @@ class DeliveryRecord(Base):
     deliveryDate = Column(Date, nullable=False)
     IdPointSale = Column(Integer, ForeignKey("pointSale.IdPointSale"), nullable=False)
     IdDomiciliary = Column(Integer, ForeignKey("Domiciliary.IdDomiciliary"), nullable=False)
-    deliveryQuantity = Column(Integer, nullable=True)
-    isRestDay = Column(Boolean, nullable=False, default=False)
+    deliveryQuantity = Column(Integer, nullable=False, default=0)
+    IdAbsenceType = Column(Integer, ForeignKey("AbsenceType.IdAbsenceType"), nullable=True)
     createdByDeliveryRecord = Column(Integer, nullable=False)
     createdAtDeliveryRecord = Column(DateTime, nullable=False)
     updatedByDeliveryRecord = Column(Integer, nullable=True)
@@ -18,6 +18,11 @@ class DeliveryRecord(Base):
 
     pointSaleRelation = relationship("pointSale")
     domiciliaryRelation = relationship("Domiciliary")
+    absenceTypeRelation = relationship("AbsenceType")
     settlement = relationship("DeliverySettlement", back_populates="deliveryRecord", uselist=False, cascade="all, delete-orphan")
+
+    @property
+    def absenceType(self):
+        return self.absenceTypeRelation
 
     __table_args__ = (UniqueConstraint("deliveryDate", "IdPointSale", "IdDomiciliary", name="uq_delivery_record_daily"),)

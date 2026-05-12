@@ -19,6 +19,14 @@ class ParameterApplication(IParameterApplication):
             raise ValueError("Parámetro no encontrado.")
 
         return parameterFound
+    
+    def getHistoryByParameterId(self, IdParameter: int):
+        parameterFound = self.parameterRepository.getById(IdParameter)
+
+        if not parameterFound:
+            raise ValueError("Parámetro no encontrado.")
+
+        return self.parameterRepository.getHistoryByParameterId(IdParameter)
 
     def create(self, parameterData: ParameterCreateDto, userLogin: str) -> Parameter:
         nameParameter = parameterData.nameParameter.strip()

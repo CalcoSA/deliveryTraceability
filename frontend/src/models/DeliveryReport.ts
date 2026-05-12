@@ -13,7 +13,8 @@ export interface DeliverySettlementReport {
   parameterNameSettlement: string;
   parameterValueSettlement: number | string;
   totalDeliveryQuantity: number;
-  totalRestDays: number;
+  totalAbsences: number;
+  absenceTypes: string;
   totalValueSettlement: number | string;
   totalRecords: number;
   createdByUsers?: string | null;

@@ -18,7 +18,8 @@ export interface DeliveryRecord {
   IdPointSale: number;
   IdDomiciliary: number;
   deliveryQuantity: number | null;
-  isRestDay: boolean;
+  IdAbsenceType: number | null;
+  absenceType: AbsenceType | null;
   createdByDeliveryRecord: number;
   createdAtDeliveryRecord: string;
   updatedByDeliveryRecord: number | null;
@@ -29,11 +30,17 @@ export interface DeliveryRecord {
 export interface DeliveryRecordBulkItemCreate {
   IdDomiciliary: number;
   deliveryQuantity: number | null;
-  isRestDay: boolean;
+  IdAbsenceType: number | null;
 }
 
 export interface DeliveryRecordBulkCreate {
   deliveryDate: string;
   IdPointSale: number;
   records: DeliveryRecordBulkItemCreate[];
+}
+
+export interface AbsenceType {
+  IdAbsenceType: number;
+  nameAbsenceType: string;
+  statusAbsenceType: boolean;
 }

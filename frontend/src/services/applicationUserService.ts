@@ -5,7 +5,7 @@ import { apiClient } from "./apiClient";
 export const applicationUserService = {
 
   async searchWordpressUsers(search: string): Promise<ApiResponse<WordpressUser[]>> {
-    const response = await apiClient.get<ApiResponse<WordpressUser[]>>("/application-user/wordpress-users/", { params: { search }, });
+    const response = await apiClient.get<ApiResponse<WordpressUser[]>>("/application-user/wordpress-users", { params: { search }, });
     return response.data;
   },
 

@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Chip, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, } from "@mui/material";
 import type { DeliveryReportPeriod, DeliverySettlementReport, } from "../models/DeliveryReport";
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
@@ -30,6 +30,28 @@ const emptyResponseModal: ResponseModalState = {
   title: "",
   message: "",
 };
+
+interface ReportTotals {
+  totalDeliveryQuantity: number;
+  totalAbsences: number;
+  totalValueSettlement: number;
+  totalRecords: number;
+}
+
+interface DomiciliaryReportGroup extends ReportTotals {
+  groupKey: string;
+  IdDomiciliary: number;
+  documentDomiciliary: string;
+  nameDomiciliary: string;
+  rows: DeliverySettlementReport[];
+}
+
+interface PointSaleReportGroup extends ReportTotals {
+  groupKey: string;
+  codePointSale: string;
+  namePointSale: string;
+  domiciliaryGroups: DomiciliaryReportGroup[];
+}
 
 const getToday = () => {
   const date = new Date();
@@ -96,18 +118,44 @@ export function DeliveryReportPage() {
     return "Mes";
   };
 
-  const totals = useMemo(() => {
+  const getAbsenceNames = (absenceTypes?: string | null) => {
+    return (absenceTypes ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  };
+
+  const getAbsenceSummaryFromNames = (names: string[]) => {
+    if (names.length === 0) {
+      return "Sin ausentismo";
+    }
+
+    const counter = names.reduce<Record<string, number>>((acc, name) => {
+      acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counter)
+      .map(([name, count]) => (count > 1 ? `${name} (${count})` : name))
+      .join(", ");
+  };
+
+  const getAbsenceSummary = (absenceTypes?: string | null) => {
+    return getAbsenceSummaryFromNames(getAbsenceNames(absenceTypes));
+  };
+  
+  const totals = useMemo<ReportTotals>(() => {
     return reportData.reduce(
       (acc, item) => {
         acc.totalDeliveryQuantity += Number(item.totalDeliveryQuantity ?? 0);
-        acc.totalRestDays += Number(item.totalRestDays ?? 0);
+        acc.totalAbsences += Number(item.totalAbsences ?? 0);
         acc.totalValueSettlement += Number(item.totalValueSettlement ?? 0);
         acc.totalRecords += Number(item.totalRecords ?? 0);
         return acc;
       },
       {
         totalDeliveryQuantity: 0,
-        totalRestDays: 0,
+        totalAbsences: 0,
         totalValueSettlement: 0,
         totalRecords: 0,
       }
@@ -116,62 +164,83 @@ export function DeliveryReportPage() {
 
   const parameterColumnName = reportData.find((item) => item.parameterNameSettlement) ?.parameterNameSettlement ?? "Parámetro";
 
-  const groupedReportData = useMemo(() => {
+  const groupedReportData = useMemo<PointSaleReportGroup[]>(() => {
     const sortedData = [...reportData].sort((a, b) => {
-      const pointSaleCompare = `${a.codePointSale} ${a.namePointSale}`.localeCompare(
-        `${b.codePointSale} ${b.namePointSale}`
+      const pointSaleCompare = `${a.namePointSale} ${a.codePointSale}`.localeCompare(
+        `${b.namePointSale} ${b.codePointSale}`
       );
 
       if (pointSaleCompare !== 0) return pointSaleCompare;
 
-      const periodCompare = a.periodKey.localeCompare(b.periodKey);
+      const domiciliaryCompare = `${a.nameDomiciliary} ${a.documentDomiciliary}`.localeCompare(
+        `${b.nameDomiciliary} ${b.documentDomiciliary}`
+      );
 
-      if (periodCompare !== 0) return periodCompare;
+      if (domiciliaryCompare !== 0) return domiciliaryCompare;
 
-      return a.nameDomiciliary.localeCompare(b.nameDomiciliary);
+      return a.periodKey.localeCompare(b.periodKey);
     });
 
-    const groups: {
-      groupKey: string;
-      codePointSale: string;
-      namePointSale: string;
-      rows: DeliverySettlementReport[];
-      subtotalDeliveryQuantity: number;
-      subtotalRestDays: number;
-      subtotalValueSettlement: number;
-      subtotalRecords: number;
-    }[] = [];
+    const pointSaleGroups: PointSaleReportGroup[] = [];
 
     sortedData.forEach((item) => {
-      const groupKey = String(item.IdPointSale);
+      const pointSaleGroupKey = String(item.IdPointSale);
 
-      let group = groups.find((current) => current.groupKey === groupKey);
+      let pointSaleGroup = pointSaleGroups.find(
+        (current) => current.groupKey === pointSaleGroupKey
+      );
 
-      if (!group) {
-        group = {
-          groupKey,
+      if (!pointSaleGroup) {
+        pointSaleGroup = {
+          groupKey: pointSaleGroupKey,
           codePointSale: item.codePointSale,
           namePointSale: item.namePointSale,
-          rows: [],
-          subtotalDeliveryQuantity: 0,
-          subtotalRestDays: 0,
-          subtotalValueSettlement: 0,
-          subtotalRecords: 0,
+          domiciliaryGroups: [],
+          totalDeliveryQuantity: 0,
+          totalAbsences: 0,
+          totalValueSettlement: 0,
+          totalRecords: 0,
         };
 
-        groups.push(group);
+        pointSaleGroups.push(pointSaleGroup);
       }
 
-      group.rows.push(item);
-      group.subtotalDeliveryQuantity += Number(
-        item.totalDeliveryQuantity ?? 0
+      const domiciliaryGroupKey = String(item.IdDomiciliary);
+
+      let domiciliaryGroup = pointSaleGroup.domiciliaryGroups.find(
+        (current) => current.groupKey === domiciliaryGroupKey
       );
-      group.subtotalRestDays += Number(item.totalRestDays ?? 0);
-      group.subtotalValueSettlement += Number(item.totalValueSettlement ?? 0);
-      group.subtotalRecords += Number(item.totalRecords ?? 0);
+
+      if (!domiciliaryGroup) {
+        domiciliaryGroup = {
+          groupKey: domiciliaryGroupKey,
+          IdDomiciliary: item.IdDomiciliary,
+          documentDomiciliary: item.documentDomiciliary,
+          nameDomiciliary: item.nameDomiciliary,
+          rows: [],
+          totalDeliveryQuantity: 0,
+          totalAbsences: 0,
+          totalValueSettlement: 0,
+          totalRecords: 0,
+        };
+
+        pointSaleGroup.domiciliaryGroups.push(domiciliaryGroup);
+      }
+
+      domiciliaryGroup.rows.push(item);
+
+      domiciliaryGroup.totalDeliveryQuantity += Number(item.totalDeliveryQuantity ?? 0);
+      domiciliaryGroup.totalAbsences += Number(item.totalAbsences ?? 0);
+      domiciliaryGroup.totalValueSettlement += Number(item.totalValueSettlement ?? 0);
+      domiciliaryGroup.totalRecords += Number(item.totalRecords ?? 0);
+
+      pointSaleGroup.totalDeliveryQuantity += Number(item.totalDeliveryQuantity ?? 0);
+      pointSaleGroup.totalAbsences += Number(item.totalAbsences ?? 0);
+      pointSaleGroup.totalValueSettlement += Number(item.totalValueSettlement ?? 0);
+      pointSaleGroup.totalRecords += Number(item.totalRecords ?? 0);
     });
 
-    return groups;
+    return pointSaleGroups;
   }, [reportData]);
 
   const loadPointSales = async () => {
@@ -317,7 +386,8 @@ export function DeliveryReportPage() {
       "Registrado por",
       parameterColumnName,
       "Domicilios",
-      "Descansos",
+      "Ausentismo",
+      "Cant. ausentismos",
       "Valor total",
       "Registros",
     ];
@@ -326,32 +396,51 @@ export function DeliveryReportPage() {
 
     rows.push(["REPORTE DE DOMICILIOS"]);
     rows.push([`Fecha de generación: ${new Date().toLocaleString("es-CO")}`]);
-    rows.push([
-      `Filtros: ${startDate} a ${endDate} | Periodo: ${getPeriodLabel(period)}`,
-    ]);
+    rows.push([`Filtros: ${startDate} a ${endDate} | Periodo: ${getPeriodLabel(period)}`,]);
     rows.push([]);
     rows.push(columns);
 
     const groupHeaderRows: number[] = [];
     const subtotalRows: number[] = [];
 
-    groupedReportData.forEach((group) => {
+    groupedReportData.forEach((pointSaleGroup) => {
       groupHeaderRows.push(rows.length);
+      rows.push([`Punto de venta: ${pointSaleGroup.codePointSale} - ${pointSaleGroup.namePointSale}`]);
 
-      rows.push([`${group.codePointSale} - ${group.namePointSale}`]);
+      pointSaleGroup.domiciliaryGroups.forEach((domiciliaryGroup) => {
+        groupHeaderRows.push(rows.length);
+        rows.push([`Domiciliario: ${domiciliaryGroup.nameDomiciliary} - ${domiciliaryGroup.documentDomiciliary}`]);
 
-      group.rows.forEach((item) => {
+        domiciliaryGroup.rows.forEach((item) => {
+          rows.push([
+            item.periodLabel,
+            `${item.codePointSale} - ${item.namePointSale}`,
+            item.nameDomiciliary,
+            item.documentDomiciliary,
+            item.createdByUsers || "Sin información",
+            Number(item.parameterValueSettlement ?? 0),
+            Number(item.totalDeliveryQuantity ?? 0),
+            getAbsenceSummary(item.absenceTypes),
+            Number(item.totalAbsences ?? 0),
+            Number(item.totalValueSettlement ?? 0),
+            Number(item.totalRecords ?? 0),
+          ]);
+        });
+
+        subtotalRows.push(rows.length);
+
         rows.push([
-          item.periodLabel,
-          `${item.codePointSale} - ${item.namePointSale}`,
-          item.nameDomiciliary,
-          item.documentDomiciliary,
-          item.createdByUsers || "Sin información",
-          Number(item.parameterValueSettlement ?? 0),
-          Number(item.totalDeliveryQuantity ?? 0),
-          Number(item.totalRestDays ?? 0),
-          Number(item.totalValueSettlement ?? 0),
-          Number(item.totalRecords ?? 0),
+          "",
+          "",
+          `Subtotal domiciliario: ${domiciliaryGroup.nameDomiciliary}`,
+          domiciliaryGroup.documentDomiciliary,
+          "",
+          "",
+          domiciliaryGroup.totalDeliveryQuantity,
+          "",
+          domiciliaryGroup.totalAbsences,
+          domiciliaryGroup.totalValueSettlement,
+          domiciliaryGroup.totalRecords,
         ]);
       });
 
@@ -359,15 +448,16 @@ export function DeliveryReportPage() {
 
       rows.push([
         "",
-        "",
-        `Subtotal ${group.codePointSale} - ${group.namePointSale}`,
-        "",
+        `Subtotal punto de venta: ${pointSaleGroup.codePointSale} - ${pointSaleGroup.namePointSale}`,
         "",
         "",
-        group.subtotalDeliveryQuantity,
-        group.subtotalRestDays,
-        group.subtotalValueSettlement,
-        group.subtotalRecords,
+        "",
+        "",
+        pointSaleGroup.totalDeliveryQuantity,
+        "",
+        pointSaleGroup.totalAbsences,
+        pointSaleGroup.totalValueSettlement,
+        pointSaleGroup.totalRecords,
       ]);
 
       rows.push([]);
@@ -383,7 +473,8 @@ export function DeliveryReportPage() {
       "",
       "",
       totals.totalDeliveryQuantity,
-      totals.totalRestDays,
+      "",
+      totals.totalAbsences,
       totals.totalValueSettlement,
       totals.totalRecords,
     ]);
@@ -399,7 +490,8 @@ export function DeliveryReportPage() {
       { wch: 24 },
       { wch: 16 },
       { wch: 12 },
-      { wch: 12 },
+      { wch: 32 },
+      { wch: 18 },
       { wch: 18 },
       { wch: 12 },
     ];
@@ -421,7 +513,7 @@ export function DeliveryReportPage() {
     ];
 
     worksheet["!autofilter"] = {
-      ref: `A5:J5`,
+      ref: `A5:K5`,
     };
 
     const titleStyle = {
@@ -871,10 +963,10 @@ export function DeliveryReportPage() {
 
           <Paper elevation={0} sx={{ border: "1px solid #E0CDBB", borderRadius: 2, p: 2 }}>
             <Typography sx={{ color: "#6B4A3A", fontSize: 13 }}>
-              Total descansos
+              Total ausentismos 
             </Typography>
             <Typography sx={{ color: "#4B2E1F", fontSize: 26, fontWeight: 800 }}>
-              {totals.totalRestDays}
+              {totals.totalAbsences}
             </Typography>
           </Paper>
 
@@ -913,166 +1005,118 @@ export function DeliveryReportPage() {
         ) : (
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: "#F7E8D8" }}>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Periodo
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Punto de venta
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Domiciliario
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Registrado por
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  {parameterColumnName}
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Domicilios
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Descansos
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Valor total
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700, color: "#4B2E1F" }}>
-                  Registros
-                </TableCell>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Periodo</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Punto de venta</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Domiciliario</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Documento</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registrado por</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}> {parameterColumnName} </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Domicilios</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Ausentismo</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Cant. ausentismos</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Valor total</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registros</TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
-              {groupedReportData.map((group) => (
-                <Fragment key={group.groupKey}>
-                  <TableRow sx={{ bgcolor: "#FFF8EF" }}>
-                    <TableCell
-                      colSpan={9}
-                      sx={{
-                        color: "#4B2E1F",
-                        fontWeight: 800,
-                        borderTop: "1px solid #E0CDBB",
-                      }}
-                    >
-                      {group.codePointSale} - {group.namePointSale}
+              {groupedReportData.map((pointSaleGroup) => (
+                <Fragment key={pointSaleGroup.groupKey}>
+                  <TableRow>
+                    <TableCell colSpan={11} sx={{ fontWeight: 800, color: "#4B2E1F", bgcolor: "#FFF8EF" }}>
+                      Punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
                     </TableCell>
                   </TableRow>
 
-                  {group.rows.map((item, index) => (
-                    <TableRow
-                      key={`${item.periodKey}-${item.IdPointSale}-${item.IdDomiciliary}-${index}`}
-                      hover
-                    >
-                      <TableCell>
-                        <Stack spacing={0.5}>
-                          <Typography sx={{ fontWeight: 600 }}>
-                            {item.periodLabel}
-                          </Typography>
-                          <Chip
-                            label={getPeriodLabel(item.periodType)}
-                            size="small"
-                            sx={{
-                              width: "fit-content",
-                              bgcolor: "#F7E8D8",
-                              color: "#4B2E1F",
-                              fontWeight: 600,
-                            }}
-                          />
-                        </Stack>
-                      </TableCell>
+                  {pointSaleGroup.domiciliaryGroups.map((domiciliaryGroup) => (
+                    <Fragment key={domiciliaryGroup.groupKey}>
+                      <TableRow>
+                        <TableCell colSpan={11} sx={{ fontWeight: 700, color: "#4B2E1F", bgcolor: "#FAF1E8" }}>
+                          Domiciliario: {domiciliaryGroup.nameDomiciliary} - {domiciliaryGroup.documentDomiciliary}
+                        </TableCell>
+                      </TableRow>
 
-                      <TableCell>
-                        {item.codePointSale} - {item.namePointSale}
-                      </TableCell>
+                      {domiciliaryGroup.rows.map((item) => (
+                        <TableRow key={`${item.IdPointSale}-${item.IdDomiciliary}-${item.periodKey}`}>
+                          <TableCell>{item.periodLabel}</TableCell>
+                          <TableCell>{item.codePointSale} - {item.namePointSale}</TableCell>
+                          <TableCell>{item.nameDomiciliary}</TableCell>
+                          <TableCell>{item.documentDomiciliary}</TableCell>
+                          <TableCell>{item.createdByUsers || "Sin información"}</TableCell>
+                          <TableCell align="right">{formatCurrency(item.parameterValueSettlement)}</TableCell>
+                          <TableCell align="right">{item.totalDeliveryQuantity}</TableCell>
+                          <TableCell>{getAbsenceSummary(item.absenceTypes)}</TableCell>
+                          <TableCell align="right">{item.totalAbsences}</TableCell>
+                          <TableCell align="right">{formatCurrency(item.totalValueSettlement)}</TableCell>
+                          <TableCell align="right">{item.totalRecords}</TableCell>
+                        </TableRow>
+                      ))}
 
-                      <TableCell>
-                        <Stack spacing={0.3}>
-                          <Typography sx={{ fontWeight: 600 }}>
-                            {item.nameDomiciliary}
-                          </Typography>
-                          <Typography sx={{ color: "#6B4A3A", fontSize: 13 }}>
-                            {item.documentDomiciliary}
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-
-                      <TableCell>{item.createdByUsers || "Sin información"}</TableCell>
-
-                      <TableCell align="right">
-                        {formatCurrency(item.parameterValueSettlement)}
-                      </TableCell>
-
-                      <TableCell align="right">
-                        {item.totalDeliveryQuantity}
-                      </TableCell>
-
-                      <TableCell align="right">
-                        {item.totalRestDays}
-                      </TableCell>
-
-                      <TableCell align="right">
-                        {formatCurrency(item.totalValueSettlement)}
-                      </TableCell>
-
-                      <TableCell align="center">
-                        {item.totalRecords}
-                      </TableCell>
-                    </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={6} sx={{ fontWeight: 800, color: "#4B2E1F" }}>
+                          Subtotal domiciliario: {domiciliaryGroup.nameDomiciliary}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 800 }}>
+                          {domiciliaryGroup.totalDeliveryQuantity}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 800 }}>
+                          
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 800 }}>
+                          {domiciliaryGroup.totalAbsences}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 800 }}>
+                          {formatCurrency(domiciliaryGroup.totalValueSettlement)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 800 }}>
+                          {domiciliaryGroup.totalRecords}
+                        </TableCell>
+                      </TableRow>
+                    </Fragment>
                   ))}
 
-                  <TableRow sx={{ bgcolor: "#F7E8D8" }}>
-                    <TableCell colSpan={5} sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                      Subtotal {group.codePointSale} - {group.namePointSale}
+                  <TableRow>
+                    <TableCell colSpan={6} sx={{ fontWeight: 900, color: "#4B2E1F", bgcolor: "#F7E8D8" }}>
+                      Subtotal punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
                     </TableCell>
-
-                    <TableCell align="right" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                      {group.subtotalDeliveryQuantity}
+                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                      {pointSaleGroup.totalDeliveryQuantity}
                     </TableCell>
-
-                    <TableCell align="right" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                      {group.subtotalRestDays}
+                    <TableCell sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                      
                     </TableCell>
-
-                    <TableCell align="right" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                      {formatCurrency(group.subtotalValueSettlement)}
+                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                      {pointSaleGroup.totalAbsences}
                     </TableCell>
-
-                    <TableCell align="center" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                      {group.subtotalRecords}
+                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                      {formatCurrency(pointSaleGroup.totalValueSettlement)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                      {pointSaleGroup.totalRecords}
                     </TableCell>
                   </TableRow>
                 </Fragment>
               ))}
 
-              {reportData.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
-                    No hay datos para mostrar. Selecciona los filtros y consulta el reporte.
-                  </TableCell>
-                </TableRow>
-              )}
-
               {reportData.length > 0 && (
-                <TableRow sx={{ bgcolor: "#FFF8EF" }}>
-                  <TableCell colSpan={5} sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                    Total general
+                <TableRow>
+                  <TableCell colSpan={6} sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                    TOTAL GENERAL
                   </TableCell>
-
-                  <TableCell align="right" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
+                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                     {totals.totalDeliveryQuantity}
                   </TableCell>
-
-                  <TableCell align="right" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                    {totals.totalRestDays}
+                  <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                    
                   </TableCell>
-
-                  <TableCell align="right" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
+                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                    {totals.totalAbsences}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                     {formatCurrency(totals.totalValueSettlement)}
                   </TableCell>
-
-                  <TableCell align="center" sx={{ fontWeight: 800, color: "#4B2E1F" }}>
+                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                     {totals.totalRecords}
                   </TableCell>
                 </TableRow>
