@@ -27,14 +27,22 @@ def getDeliveryRecordApplication(db: Session = Depends(getDb)) -> IDeliveryRecor
 
     return DeliveryRecordApplication(deliveryRecordRepository, pointSaleRepo, domiciliaryRepo, parameterRepo, absenceTypeRepo)
 
-def getAuthenticatedUserId(payload: dict) -> int:
-    userId = payload.get("wordpressUserId")
+def getAuthenticatedUserReference(payload: dict) -> str:
+    authType = payload.get("authType")
 
-    if not userId:
-        logger.warning("No se pudo identificar el usuario autenticado en el payload.")
+    if authType == "POINT_SALE_EMAIL":
+        userReference = payload.get("pointSaleEmail")
+    else:
+        userReference = payload.get("wordpressUserLogin")
+
+    if not userReference:
+        userReference = payload.get("wordpressUserId")
+
+    if not userReference:
+        logger.warning("No se pudo identificar el usuario autenticado en el payload. Payload=%s", payload)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No se pudo identificar el usuario autenticado.")
 
-    return int(userId)
+    return str(userReference)
 
 @router.get("/", response_model=apiResponseDto[List[DeliveryRecordResponseDto]])
 def getAllDeliveryRecords(deliveryDate: Optional[date] = Query(None), IdPointSale: Optional[int] = Query(None), IdDomiciliary: Optional[int] = Query(None), payload: dict = Depends(getCurrentPayload), service: IDeliveryRecordApplication = Depends(getDeliveryRecordApplication)):
@@ -72,10 +80,10 @@ def getDeliveryRecordById(IdDeliveryRecord: int, payload: dict = Depends(getCurr
 @router.post("/", response_model=apiResponseDto[DeliveryRecordResponseDto], status_code=status.HTTP_201_CREATED)
 def createDeliveryRecord(deliveryData: DeliveryRecordCreateDto, payload: dict = Depends(getCurrentPayload), service: IDeliveryRecordApplication = Depends(getDeliveryRecordApplication)):
     try:
-        userId = getAuthenticatedUserId(payload)
-        logger.info("Creando registro de domicilio | userId=%s", userId)
-        data = service.create(deliveryData, userId)
-        logger.info("Registro de domicilio creado correctamente | IdDeliveryRecord=%s | userId=%s", getattr(data, "IdDeliveryRecord", None), userId)
+        userReference = getAuthenticatedUserReference(payload)
+        logger.info("Creando registro de domicilio | user=%s", userReference)
+        data = service.create(deliveryData, userReference)
+        logger.info("Registro de domicilio creado correctamente | IdDeliveryRecord=%s | userId=%s", getattr(data, "IdDeliveryRecord", None), userReference)
         return apiResponseDto(isSuccess=True, Message="Registro de domicilio creado correctamente.", result=data)
 
     except ValueError as e:
@@ -92,10 +100,10 @@ def createDeliveryRecord(deliveryData: DeliveryRecordCreateDto, payload: dict = 
 @router.post("/bulk", response_model=apiResponseDto[List[DeliveryRecordResponseDto]], status_code=status.HTTP_201_CREATED)
 def createManyDeliveryRecords(deliveryData: DeliveryRecordBulkCreateDto, payload: dict = Depends(getCurrentPayload), service: IDeliveryRecordApplication = Depends(getDeliveryRecordApplication)):
     try:
-        userId = getAuthenticatedUserId(payload)
-        logger.info("Creando registros masivos de domicilio | userId=%s", userId)
-        data = service.createMany(deliveryData, userId)
-        logger.info("Registros masivos de domicilio creados correctamente | total=%s | userId=%s", len(data), userId)
+        userReference = getAuthenticatedUserReference(payload)
+        logger.info("Creando registros masivos de domicilio | user=%s", userReference)
+        data = service.createMany(deliveryData, userReference)
+        logger.info("Registros masivos de domicilio creados correctamente | total=%s | userId=%s", len(data), userReference)
         return apiResponseDto(isSuccess=True, Message="Registros de domicilios creados correctamente.", result=data)
 
     except ValueError as e:
@@ -112,10 +120,10 @@ def createManyDeliveryRecords(deliveryData: DeliveryRecordBulkCreateDto, payload
 @router.put("/{IdDeliveryRecord}", response_model=apiResponseDto[DeliveryRecordResponseDto])
 def updateDeliveryRecord(IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, payload: dict = Depends(getCurrentPayload), service: IDeliveryRecordApplication = Depends(getDeliveryRecordApplication)):
     try:
-        userId = getAuthenticatedUserId(payload)
-        logger.info("Actualizando registro de domicilio | IdDeliveryRecord=%s | userId=%s", IdDeliveryRecord, userId)
-        data = service.update(IdDeliveryRecord, deliveryData, userId)
-        logger.info("Registro de domicilio actualizado correctamente | IdDeliveryRecord=%s | userId=%s", IdDeliveryRecord, userId)
+        userReference = getAuthenticatedUserReference(payload)
+        logger.info("Actualizando registro de domicilio | IdDeliveryRecord=%s | user=%s", IdDeliveryRecord, userReference)
+        data = service.update(IdDeliveryRecord, deliveryData, userReference)
+        logger.info("Registro de domicilio actualizado correctamente | IdDeliveryRecord=%s | userId=%s", IdDeliveryRecord, userReference)
         return apiResponseDto(isSuccess=True, Message="Registro de domicilio actualizado correctamente.", result=data)
 
     except ValueError as e:

@@ -4,6 +4,7 @@ import { RequirePermission } from "./components/RequirePermission";
 import { ApplicationUserPage } from "./pages/ApplicationUserPage";
 import { DeliveryReportPage } from "./pages/DeliveryReportPage";
 import { IntranetAccessPage } from "./pages/IntranetAccessPage";
+import { PointSaleEmailPage } from "./pages/PointSaleEmailPage";
 import { DomiciliaryPage } from "./pages/DomiciliaryPage";
 import { PublicRoute } from "./components/PublicRoute";
 import { RequireAuth } from "./components/RequireAuth";
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/maestros/parametros" element={ <RequirePermission path="/maestros/parametros"> <ParameterPage /> </RequirePermission> }/>
             <Route path="/maestros/roles" element={ <RequirePermission path="/maestros/roles"> <RolePage /> </RequirePermission> }/>
             <Route path="/maestros/usuarios" element={ <RequirePermission path="/maestros/usuarios"> <ApplicationUserPage /> </RequirePermission> }/>
+            <Route path="/maestros/correos-pdv" element={ <RequirePermission path="/maestros/correos-pdv"> <PointSaleEmailPage /> </RequirePermission> }/>
             <Route path="/registro-domicilios" element={ <RequirePermission path="/registro-domicilios"> <DeliveryRegistrationPage /> </RequirePermission> }/>
             <Route path="/reporte-domicilios" element={ <RequirePermission path="/reporte-domicilios"> <DeliveryReportPage /> </RequirePermission> }/>
             <Route path="*" element={<Navigate to="/" replace />} />

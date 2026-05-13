@@ -41,7 +41,7 @@ class DeliveryReportRepository(IDeliveryReportRepository):
                 absenceTypesExpression.label("absenceTypes"),
                 totalValueSettlementExpression.label("totalValueSettlement"),
                 func.count(DeliveryRecord.IdDeliveryRecord).label("totalRecords"),
-                func.group_concat(func.distinct(CreatedUser.wordpressUserLogin)).label("createdByUsers"))
+                func.group_concat(func.distinct(DeliveryRecord.createdByDeliveryRecord)).label("createdByUsers"))
             .select_from(DeliveryRecord)
             .outerjoin(
                 DeliverySettlement,

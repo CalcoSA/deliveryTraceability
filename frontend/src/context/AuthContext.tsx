@@ -15,6 +15,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
   intranetAccess: (data: IntranetAccessRequest) => Promise<void>;
+  requestPointSaleCode: (emailPointSale: string) => Promise<void>;
+  loginWithPointSaleCode: (emailPointSale: string, code: string) => Promise<void>;
   logout: () => void;
   hasPermission: (path: string) => boolean;
 }
@@ -26,11 +28,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  const saveAuthSession = useCallback((accessToken: string, authUser: AuthUser) => {
-    localStorage.setItem("accessToken", accessToken);
-    setToken(accessToken);
-    setUser(authUser);
-  }, []);
+  const saveAuthSession = useCallback(
+    (accessToken: string, authUser: AuthUser) => {
+      localStorage.setItem("accessToken", accessToken);
+      setToken(accessToken);
+      setUser(authUser);
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem("accessToken");
@@ -53,12 +58,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const intranetAccess = useCallback(
     async (data: IntranetAccessRequest) => {
-      const response = await authService.intranetAccess(data.userLogin, data.ts, data.sig);
+      const response = await authService.intranetAccess(
+        data.userLogin,
+        data.ts,
+        data.sig
+      );
 
       if (!response.isSuccess || !response.result) {
         throw new Error(
           response.Message || "No se pudo validar el acceso desde intranet."
         );
+      }
+
+      saveAuthSession(response.result.accessToken, response.result.user);
+    },
+    [saveAuthSession]
+  );
+
+  const requestPointSaleCode = useCallback(
+    async (emailPointSale: string) => {
+      const response = await authService.requestPointSaleCode(emailPointSale);
+
+      if (!response.isSuccess) {
+        throw new Error(response.Message || "No se pudo enviar el código.");
+      }
+    },
+    []
+  );
+
+  const loginWithPointSaleCode = useCallback(
+    async (emailPointSale: string, code: string) => {
+      const response = await authService.verifyPointSaleCode(
+        emailPointSale,
+        code
+      );
+
+      if (!response.isSuccess || !response.result) {
+        throw new Error(response.Message || "No se pudo iniciar sesión.");
       }
 
       saveAuthSession(response.result.accessToken, response.result.user);
@@ -72,9 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return (
         user?.menuOptions.some(
-          (item) =>
-            item.statusMenuOption &&
-            item.pathMenuOption === path
+          (item) => item.statusMenuOption && item.pathMenuOption === path
         ) ?? false
       );
     },
@@ -117,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(token && user),
       login,
       intranetAccess,
+      requestPointSaleCode,
+      loginWithPointSaleCode,
       logout,
       hasPermission,
     }),
@@ -126,6 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loadingAuth,
       login,
       intranetAccess,
+      requestPointSaleCode,
+      loginWithPointSaleCode,
       logout,
       hasPermission,
     ]

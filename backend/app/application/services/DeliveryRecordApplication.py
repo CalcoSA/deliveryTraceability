@@ -41,7 +41,7 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
 
         return deliveryRecordFound
 
-    def create(self, deliveryData: DeliveryRecordCreateDto, userId: int) -> DeliveryRecord:
+    def create(self, deliveryData: DeliveryRecordCreateDto, userReference: str) -> DeliveryRecord:
         self._validateBaseData(deliveryData.IdPointSale, deliveryData.IdDomiciliary)
         self._validateAbsenceType(deliveryData.IdAbsenceType)
         self._validateDeliveryQuantity(deliveryData.IdAbsenceType, deliveryData.deliveryQuantity)
@@ -56,9 +56,9 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
         if not deliveryData.isRestDay:
             parameter = self._getAndValidateDeliveryValueParameter()
 
-        return self.deliveryRecordRepository.create(deliveryData, userId, parameter)
+        return self.deliveryRecordRepository.create(deliveryData, userReference, parameter)
     
-    def createMany(self, deliveryData: DeliveryRecordBulkCreateDto, userId: int) -> List[DeliveryRecord]:
+    def createMany(self, deliveryData: DeliveryRecordBulkCreateDto, userReference: str) -> List[DeliveryRecord]:
 
         if not deliveryData.records:
             raise ValueError("Debes enviar al menos un domiciliario.")
@@ -100,9 +100,9 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
         if hasNormalDelivery:
             parameter = self._getAndValidateDeliveryValueParameter()
 
-        return self.deliveryRecordRepository.createMany(deliveryData.deliveryDate, deliveryData.IdPointSale, deliveryData.records, userId, parameter)
+        return self.deliveryRecordRepository.createMany(deliveryData.deliveryDate, deliveryData.IdPointSale, deliveryData.records, userReference, parameter)
 
-    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userId: int) -> DeliveryRecord:
+    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userReference: str) -> DeliveryRecord:
         deliveryRecordFound = self.deliveryRecordRepository.getById(IdDeliveryRecord)
 
         if not deliveryRecordFound:
@@ -141,7 +141,7 @@ class DeliveryRecordApplication(IDeliveryRecordApplication):
         if finalIdAbsenceType is None:
             parameter = self._getAndValidateDeliveryValueParameter()
 
-        deliveryUpdated = self.deliveryRecordRepository.update(IdDeliveryRecord, deliveryData, userId, parameter)
+        deliveryUpdated = self.deliveryRecordRepository.update(IdDeliveryRecord, deliveryData, userReference, parameter)
 
         if not deliveryUpdated:
             raise ValueError("Registro de domicilio no encontrado.")

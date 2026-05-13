@@ -26,9 +26,9 @@ class DeliverySettlementResponseDto(BaseModel):
     parameterValueSettlement: Decimal
     deliveryQuantitySettlement: int
     totalValueSettlement: Decimal
-    createdBySettlement: int
+    createdBySettlement: str
     createdAtSettlement: datetime
-    updatedBySettlement: Optional[int] = None
+    updatedBySettlement: Optional[str] = None
     updatedAtSettlement: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -41,9 +41,9 @@ class DeliveryRecordResponseDto(BaseModel):
     deliveryQuantity: int
     IdAbsenceType: Optional[int] = None
     absenceType: Optional[AbsenceTypeResponseDto] = None
-    createdByDeliveryRecord: int
+    createdByDeliveryRecord: str
     createdAtDeliveryRecord: datetime
-    updatedByDeliveryRecord: Optional[int] = None
+    updatedByDeliveryRecord: Optional[str] = None
     updatedAtDeliveryRecord: Optional[datetime] = None
     settlement: Optional[DeliverySettlementResponseDto] = None
 
