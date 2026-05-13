@@ -9,6 +9,7 @@ import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -62,6 +63,11 @@ const masterItems: MenuItem[] = [
     path: "/maestros/usuarios",
     icon: <PeopleAltOutlinedIcon />,
   },
+  {
+    label: "Correos PDV",
+    path: "/maestros/correos-pdv",
+    icon: <EmailOutlinedIcon />,
+  },
 ];
 
 const mainItems: MenuItem[] = [
@@ -103,7 +109,7 @@ const helpContentByPath: Record<HelpPath, HelpContent> = {
   "/registro-domicilios": {
     title: "Instructivo - Registro de domicilios",
     description:
-      "Esta opción permite registrar los domicilios realizados por cada domiciliario, según la fecha y el punto de venta seleccionado.",
+      "Esta opción permite registrar los domicilios realizados por cada domiciliario, según la fecha y el punto de venta seleccionado. También permite registrar ausentismos cuando el domiciliario no realiza domicilios en la fecha seleccionada.",
     steps: [
       {
         title: "Selecciona la fecha",
@@ -121,19 +127,26 @@ const helpContentByPath: Record<HelpPath, HelpContent> = {
           "Ingresa la cantidad de domicilios realizados por cada domiciliario. El campo solo permite valores numéricos.",
       },
       {
-        title: "Marca descanso si aplica",
+        title: "Selecciona un ausentismo si aplica",
         description:
-          "Si un domiciliario no trabajó ese día, marca la casilla de descanso. En ese caso no será necesario ingresar cantidad de domicilios.",
+          "Si un domiciliario no realizó domicilios ese día, selecciona el tipo de ausentismo correspondiente en la lista. Al seleccionar un ausentismo, la cantidad de domicilios queda en 0.",
+      },
+      {
+        title: "Valida los registros",
+        description:
+          "Cada domiciliario debe tener una cantidad de domicilios mayor a 0 o un tipo de ausentismo seleccionado. No deben quedar filas pendientes antes de guardar.",
       },
       {
         title: "Guarda los registros",
         description:
-          "Cuando todos los domiciliarios tengan una cantidad registrada o estén marcados como descanso, presiona el botón de guardar.",
+          "Cuando todos los domiciliarios tengan una cantidad registrada o un ausentismo seleccionado, presiona el botón de guardar.",
       },
     ],
     recommendations: [
       "Verifica la fecha antes de guardar.",
-      "Todos los domiciliarios deben tener cantidad de domicilios o descanso marcado.",
+      "Verifica que el punto de venta seleccionado sea el correcto.",
+      "Todos los domiciliarios deben tener cantidad de domicilios o un ausentismo seleccionado.",
+      "Si seleccionas un ausentismo, el sistema registrará la cantidad de domicilios en 0.",
       "Si seleccionaste mal el punto de venta, limpia el formulario y vuelve a iniciar.",
     ],
   },
@@ -141,7 +154,7 @@ const helpContentByPath: Record<HelpPath, HelpContent> = {
   "/reporte-domicilios": {
     title: "Instructivo - Reporte de domicilios",
     description:
-      "Esta opción permite consultar y exportar la información de domicilios registrados, usando filtros por fecha, periodo, punto de venta y domiciliario.",
+      "Esta opción permite consultar y exportar la información de domicilios registrados, usando filtros por fecha, periodo, punto de venta y domiciliario. El reporte también muestra los ausentismos registrados y sus cantidades.",
     steps: [
       {
         title: "Selecciona el rango de fechas",
@@ -169,6 +182,11 @@ const helpContentByPath: Record<HelpPath, HelpContent> = {
           "Presiona el botón de consultar para cargar el reporte según los filtros seleccionados.",
       },
       {
+        title: "Revisa domicilios y ausentismos",
+        description:
+          "El reporte muestra la cantidad de domicilios, el tipo de ausentismo registrado en el detalle y la cantidad total de ausentismos en los subtotales y totales.",
+      },
+      {
         title: "Exporta el reporte",
         description:
           "Cuando el reporte tenga información, puedes descargarlo en Excel usando el botón de exportar.",
@@ -178,6 +196,8 @@ const helpContentByPath: Record<HelpPath, HelpContent> = {
       "Primero consulta el reporte antes de exportarlo.",
       "Si no aparecen datos, valida que existan registros para el rango de fechas seleccionado.",
       "Usa los filtros para encontrar información más específica.",
+      "En los subtotales y totales se muestra la cantidad de ausentismos, no el nombre de cada ausentismo.",
+      "El nombre del ausentismo se muestra en el detalle del reporte cuando aplica.",
     ],
   },
 };
@@ -718,6 +738,8 @@ function Header() {
 function Footer() {
   const location = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [selectedHelpPath, setSelectedHelpPath] = useState<HelpPath>(() =>
     getHelpPathFromCurrentRoute(location.pathname)
   );
@@ -731,6 +753,22 @@ function Footer() {
 
   const handleCloseHelp = () => {
     setHelpOpen(false);
+  };
+
+  const handleOpenPrivacy = () => {
+    setPrivacyOpen(true);
+  };
+
+  const handleClosePrivacy = () => {
+    setPrivacyOpen(false);
+  };
+
+  const handleOpenTerms = () => {
+    setTermsOpen(true);
+  };
+
+  const handleCloseTerms = () => {
+    setTermsOpen(false);
   };
 
   return (
@@ -814,7 +852,9 @@ function Footer() {
               sx={{ borderColor: "rgba(247,232,216,0.35)" }}
             />
 
-            <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
+            <Typography
+              onClick={handleOpenTerms}
+              sx={{ fontSize: 14, whiteSpace: "nowrap", cursor: "pointer", }}>
               Términos y condiciones
             </Typography>
 
@@ -824,7 +864,9 @@ function Footer() {
               sx={{ borderColor: "rgba(247,232,216,0.35)" }}
             />
 
-            <Typography sx={{ fontSize: 14, whiteSpace: "nowrap" }}>
+            <Typography
+              onClick={handleOpenPrivacy}
+              sx={{ fontSize: 14, whiteSpace: "nowrap", cursor: "pointer", }} >
               Privacidad
             </Typography>
 
@@ -858,6 +900,323 @@ function Footer() {
           }}
         />
       </Box>
+
+      <Dialog
+        open={privacyOpen}
+        onClose={handleClosePrivacy}
+        fullWidth
+        maxWidth="md"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 3,
+              overflow: "hidden",
+              bgcolor: "#FFFDF8",
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "#4B2E1F",
+            color: "#F7E8D8",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            py: 2,
+            px: 3,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+              Política de privacidad y uso de la información
+            </Typography>
+          </Box>
+
+          <IconButton
+            onClick={handleClosePrivacy}
+            sx={{
+              color: "#F7E8D8",
+              "&:hover": {
+                bgcolor: "rgba(247,232,216,0.12)",
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ p: 3 }}>
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El Sistema de Registro de Domicilios es una aplicación de uso interno de
+              la Compañía de Alimentos Colombianos Calco S.A. / Crepes & Waffles,
+              destinada a apoyar la gestión operativa relacionada con puntos de venta,
+              domiciliarios, registros de domicilios, ausentismos, liquidaciones,
+              reportes, usuarios, roles y parámetros del sistema.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              La información registrada en esta aplicación será utilizada únicamente
+              para fines operativos, administrativos, de seguimiento, auditoría, control
+              interno y generación de reportes asociados al proceso de domicilios. No
+              debe ser usada para fines personales, externos o diferentes a los
+              autorizados por la Compañía.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              La aplicación puede tratar información como usuarios autenticados,
+              correos autorizados de punto de venta, roles, permisos, puntos de venta,
+              domiciliarios, documentos de identificación, fechas de registro,
+              cantidades de domicilios, ausentismos, valores de liquidación,
+              parámetros y trazabilidad de creación o actualización de registros.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El acceso a la información se realiza de acuerdo con los perfiles y
+              permisos asignados a cada usuario. Cada usuario es responsable del uso
+              adecuado de sus credenciales, del manejo responsable de la información
+              consultada y de no divulgar datos a personas no autorizadas.
+            </Typography>
+
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 2,
+                mb: 2,
+                border: "1px solid #E0CDBB",
+                borderRadius: 2,
+                p: 2,
+                bgcolor: "#FFF8EF",
+              }}
+            >
+              <Typography sx={{ color: "#4B2E1F", fontSize: 16, fontWeight: 700, mb: 1 }}>
+                Fuente interna y marco normativo
+              </Typography>
+
+              <Typography sx={{ color: "#6A4A38", fontSize: 14, lineHeight: 1.7 }}>
+                Esta política se fundamenta en el documento interno “Sistema de Gestión
+                de Seguridad de la Información - TEC-I-CWN-01”, versión 4.2, de la
+                Dirección de Tecnología de Crepes y Waffles S.A., y en la normativa
+                colombiana aplicable sobre protección de datos personales,
+                especialmente el artículo 15 de la Constitución Política de Colombia,
+                la Ley 1581 de 2012 y sus decretos reglamentarios.
+              </Typography>
+            </Paper>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7 }}>
+              El uso de esta aplicación implica la aceptación de estas condiciones y el
+              compromiso de tratar la información de manera responsable, segura y
+              exclusivamente para las finalidades autorizadas.
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: "1px solid #E0CDBB",
+            bgcolor: "#FFF8EF",
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={handleClosePrivacy}
+            sx={{
+              bgcolor: "#4B2E1F",
+              color: "#FFFFFF",
+              textTransform: "none",
+              fontWeight: 600,
+              px: 3,
+              "&:hover": {
+                bgcolor: "#3A2318",
+              },
+            }}
+          >
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={termsOpen}
+        onClose={handleCloseTerms}
+        fullWidth
+        maxWidth="md"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 3,
+              overflow: "hidden",
+              bgcolor: "#FFFDF8",
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "#4B2E1F",
+            color: "#F7E8D8",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            py: 2,
+            px: 3,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+              Términos y condiciones de uso
+            </Typography>
+          </Box>
+
+          <IconButton
+            onClick={handleCloseTerms}
+            sx={{
+              color: "#F7E8D8",
+              "&:hover": {
+                bgcolor: "rgba(247,232,216,0.12)",
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ p: 3 }}>
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El Sistema de Registro de Domicilios es un aplicativo de uso interno de la
+              Compañía de Alimentos Colombianos Calco S.A. / Crepes & Waffles, dispuesto
+              para apoyar la gestión operativa, administrativa y de seguimiento relacionada
+              con el registro de domicilios, puntos de venta, domiciliarios, ausentismos,
+              liquidaciones, reportes, usuarios, roles y parámetros del sistema.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El acceso y uso de este aplicativo está permitido únicamente a usuarios
+              autorizados por la Compañía, de acuerdo con los roles, permisos y perfiles
+              asignados. Toda actividad realizada dentro del sistema podrá ser registrada
+              para efectos de trazabilidad, auditoría, control interno, seguridad de la
+              información y continuidad operativa.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El usuario se compromete a utilizar el aplicativo exclusivamente para fines
+              laborales, operativos y autorizados por la Compañía. Está prohibido usar la
+              aplicación para fines personales, externos, fraudulentos, no autorizados o
+              contrarios a las políticas internas de seguridad de la información.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              Las credenciales de acceso, códigos de verificación, usuarios, contraseñas y
+              permisos asignados son personales, intransferibles y de uso exclusivo del
+              usuario autorizado. El usuario es responsable de proteger sus accesos y de no
+              compartirlos con terceros.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              La información consultada, registrada, modificada o exportada desde el
+              aplicativo debe manejarse con confidencialidad y únicamente para las
+              finalidades autorizadas. No está permitido divulgar, copiar, alterar, eliminar,
+              extraer o distribuir información del sistema sin autorización previa de la
+              Compañía.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El software, código fuente, configuraciones, diseños, bases de datos,
+              reportes, documentación técnica y demás componentes relacionados con este
+              aplicativo son propiedad de la Compañía o se encuentran autorizados para su
+              uso, según corresponda. No está permitida su reproducción, modificación,
+              distribución, instalación o uso por fuera de los lineamientos definidos por la
+              Dirección de Tecnología.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              El usuario no debe intentar vulnerar la seguridad del aplicativo, evadir
+              controles de autenticación, acceder a módulos no autorizados, manipular datos
+              sin permiso, afectar la disponibilidad del servicio o realizar cualquier acción
+              que pueda comprometer la confidencialidad, integridad o disponibilidad de la
+              información.
+            </Typography>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7, mb: 2 }}>
+              La Compañía podrá realizar monitoreo, revisión, auditoría y seguimiento sobre
+              el uso del aplicativo, con el fin de garantizar la seguridad de la información,
+              el cumplimiento de políticas internas, la continuidad del servicio y la correcta
+              operación del proceso.
+            </Typography>
+
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 2,
+                mb: 2,
+                border: "1px solid #E0CDBB",
+                borderRadius: 2,
+                p: 2,
+                bgcolor: "#FFF8EF",
+              }}
+            >
+              <Typography sx={{ color: "#4B2E1F", fontSize: 16, fontWeight: 700, mb: 1 }}>
+                Fuente interna y marco normativo
+              </Typography>
+
+              <Typography sx={{ color: "#6A4A38", fontSize: 14, lineHeight: 1.7 }}>
+                Estos términos se fundamentan en los lineamientos internos de seguridad de
+                la información de la Compañía, especialmente en las políticas relacionadas
+                con uso de aplicativos, uso de software, control de acceso, confidencialidad,
+                respaldo, bases de datos, intranet, propiedad intelectual y manejo
+                responsable de la información.
+              </Typography>
+
+              <Typography sx={{ color: "#6A4A38", fontSize: 14, lineHeight: 1.7, mt: 1.5 }}>
+                También se apoyan en la normativa colombiana aplicable, incluyendo la Ley
+                1581 de 2012 sobre protección de datos personales, la Ley 1273 de 2009
+                sobre protección de la información y los datos, la Ley 23 de 1982 y el
+                Decreto 1360 de 1989 sobre protección del software, y la Ley 527 de 1999
+                sobre mensajes de datos y medios electrónicos.
+              </Typography>
+            </Paper>
+
+            <Typography sx={{ color: "#4B2E1F", fontSize: 15, lineHeight: 1.7 }}>
+              El uso de este aplicativo implica el conocimiento y aceptación de estos
+              términos y condiciones, así como el compromiso de utilizar la información, los
+              módulos y las funcionalidades del sistema de manera responsable, segura y
+              exclusivamente para las finalidades autorizadas por la Compañía.
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: "1px solid #E0CDBB",
+            bgcolor: "#FFF8EF",
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={handleCloseTerms}
+            sx={{
+              bgcolor: "#4B2E1F",
+              color: "#FFFFFF",
+              textTransform: "none",
+              fontWeight: 600,
+              px: 3,
+              "&:hover": {
+                bgcolor: "#3A2318",
+              },
+            }}
+          >
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
 
         <Dialog
           open={helpOpen}

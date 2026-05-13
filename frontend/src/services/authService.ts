@@ -17,4 +17,14 @@ export const authService = {
     const response = await apiClient.get<ApiResponse<AuthResult>>("/auth/intranet-access", { params: { userLogin, ts, sig, }, });
     return response.data;
   },
+
+  async requestPointSaleCode(emailPointSale: string): Promise<ApiResponse<Record<string, never>>> {
+    const response = await apiClient.post<ApiResponse<Record<string, never>>>("/auth/point-sale/request-code", { emailPointSale });
+    return response.data;
+  },
+
+  async verifyPointSaleCode(emailPointSale: string, code: string): Promise<ApiResponse<AuthResult>> {
+    const response = await apiClient.post<ApiResponse<AuthResult>>("/auth/point-sale/verify-code", { emailPointSale, code });
+    return response.data;
+  },
 };

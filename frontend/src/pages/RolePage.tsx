@@ -3,11 +3,11 @@ import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettin
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import type { Role, RoleCreate, RoleUpdate } from "../models/Role";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { getErrorMessage } from "../services/errorService";
-import type { Role, RoleCreate } from "../models/Role";
 import type { MenuOption } from "../models/MenuOption";
 import { roleService } from "../services/roleService";
 import { useEffect, useState } from "react";
@@ -56,6 +56,7 @@ export function RolePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const isCreate = modalMode === "create";
+  const isPdvRole = !isCreate && selectedRole?.nameRole?.trim().toUpperCase() === "PDV";
 
   const showResponseModal = (severity: ResponseModalSeverity, title: string, message: string) => {
     setResponseModal({
@@ -191,16 +192,20 @@ export function RolePage() {
       }
       setSaving(true);
       setValidationError("");
-      const data: RoleCreate = {
-        nameRole,
-        statusRole: form.statusRole,
-        menuOptionIds: form.menuOptionIds,
-      };
-
-      const response =
-        modalMode === "create"
-          ? await roleService.create(data)
-          : await roleService.update(selectedRole!.IdRole, data);
+      const response = isCreate
+        ? await roleService.create({
+            nameRole,
+            statusRole: form.statusRole,
+            menuOptionIds: form.menuOptionIds,
+          } as RoleCreate)
+        : await roleService.update(
+            selectedRole!.IdRole,
+            {
+              ...(isPdvRole ? {} : { nameRole }),
+              statusRole: form.statusRole,
+              menuOptionIds: form.menuOptionIds,
+            } as RoleUpdate
+          );
 
       if (!response.isSuccess) {
         showResponseModal(
@@ -468,9 +473,10 @@ export function RolePage() {
             <TextField
               label="Nombre del rol"
               value={form.nameRole}
-              disabled={saving}
+              disabled={saving || isPdvRole}
               fullWidth
               required
+              helperText={isPdvRole ? "El nombre del rol PDV no se puede modificar." : ""}
               onChange={(event) =>
                 setForm((prev) => ({
                   ...prev,

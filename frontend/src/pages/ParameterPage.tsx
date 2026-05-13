@@ -1,7 +1,7 @@
 import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, } from "@mui/material";
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOutlined";
-import type { Parameter, ParameterCreate, } from "../models/Parameter";
+import type { Parameter, ParameterCreate, ParameterUpdate } from "../models/Parameter";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -140,17 +140,17 @@ export function ParameterPage() {
       }
       setSaving(true);
       setValidationError("");
-      const data: ParameterCreate = {
-        nameParameter,
-        valueParameter,
-      };
-      const response =
-        modalMode === "create"
-          ? await parameterService.create(data)
-          : await parameterService.update(
-              selectedParameter!.IdParameter,
-              data
-            );
+      const response = isCreate
+        ? await parameterService.create({
+            nameParameter,
+            valueParameter,
+          } as ParameterCreate)
+        : await parameterService.update(
+            selectedParameter!.IdParameter,
+            {
+              valueParameter,
+            } as ParameterUpdate
+          );
       if (!response.isSuccess) {
         showResponseModal(
           "error",
@@ -406,9 +406,10 @@ export function ParameterPage() {
             <TextField
               label="Nombre del parámetro"
               value={form.nameParameter}
-              disabled={saving}
+              disabled={saving || !isCreate}
               fullWidth
               required
+              helperText={!isCreate ? "El nombre del parámetro no se puede modificar." : ""}
               onChange={(event) =>
                 setForm((prev) => ({
                   ...prev,

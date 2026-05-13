@@ -51,7 +51,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
 
         return query.first()
 
-    def create(self, deliveryData: DeliveryRecordCreateDto, userId: int, parameter: Optional[Parameter]) -> DeliveryRecord:
+    def create(self, deliveryData: DeliveryRecordCreateDto, userReference: str, parameter: Optional[Parameter]) -> DeliveryRecord:
         try:
             now = self._nowBogota()
             hasAbsence = deliveryData.IdAbsenceType is not None
@@ -63,7 +63,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
                 IdDomiciliary=deliveryData.IdDomiciliary,
                 deliveryQuantity=deliveryQuantity,
                 IdAbsenceType=deliveryData.IdAbsenceType,
-                createdByDeliveryRecord=userId,
+                createdByDeliveryRecord=userReference,
                 createdAtDeliveryRecord=now,
                 updatedByDeliveryRecord=None,
                 updatedAtDeliveryRecord=None
@@ -83,7 +83,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
                     parameterValueSettlement=parameterValue,
                     deliveryQuantitySettlement=deliveryQuantity,
                     totalValueSettlement=totalValue,
-                    createdBySettlement=userId,
+                    createdBySettlement=userReference,
                     createdAtSettlement=now,
                     updatedBySettlement=None,
                     updatedAtSettlement=None
@@ -104,7 +104,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
             self.db.rollback()
             raise Exception(f"Error al crear el registro de domicilio: {str(e)}")
         
-    def createMany(self, deliveryDate: date, IdPointSale: int, records: List[DeliveryRecordBulkItemCreateDto], userId: int, parameter: Optional[Parameter]) -> List[DeliveryRecord]:
+    def createMany(self, deliveryDate: date, IdPointSale: int, records: List[DeliveryRecordBulkItemCreateDto], userReference: str, parameter: Optional[Parameter]) -> List[DeliveryRecord]:
         try:
             now = self._nowBogota()
             createdIds = []
@@ -119,7 +119,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
                     IdDomiciliary=item.IdDomiciliary,
                     deliveryQuantity=deliveryQuantity,
                     IdAbsenceType=item.IdAbsenceType,
-                    createdByDeliveryRecord=userId,
+                    createdByDeliveryRecord=userReference,
                     createdAtDeliveryRecord=now,
                     updatedByDeliveryRecord=None,
                     updatedAtDeliveryRecord=None
@@ -141,7 +141,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
                         parameterValueSettlement=parameterValue,
                         deliveryQuantitySettlement=deliveryQuantity,
                         totalValueSettlement=totalValue,
-                        createdBySettlement=userId,
+                        createdBySettlement=userReference,
                         createdAtSettlement=now,
                         updatedBySettlement=None,
                         updatedAtSettlement=None
@@ -161,7 +161,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
             self.db.rollback()
             raise Exception(f"Error al crear los registros de domicilio: {str(e)}")
 
-    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userId: int, parameter: Optional[Parameter]) -> Optional[DeliveryRecord]:
+    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userReference: str, parameter: Optional[Parameter]) -> Optional[DeliveryRecord]:
 
         try:
             deliveryRecordFound = self.getById(IdDeliveryRecord)
@@ -207,7 +207,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
                         deliveryRecordFound.settlement.parameterValueSettlement = parameterValue
                         deliveryRecordFound.settlement.deliveryQuantitySettlement = quantity
                         deliveryRecordFound.settlement.totalValueSettlement = totalValue
-                        deliveryRecordFound.settlement.updatedBySettlement = userId
+                        deliveryRecordFound.settlement.updatedBySettlement = userReference
                         deliveryRecordFound.settlement.updatedAtSettlement = now
                     else:
                         newSettlement = DeliverySettlement(
@@ -217,7 +217,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
                             parameterValueSettlement=parameterValue,
                             deliveryQuantitySettlement=quantity,
                             totalValueSettlement=totalValue,
-                            createdBySettlement=userId,
+                            createdBySettlement=userReference,
                             createdAtSettlement=now,
                             updatedBySettlement=None,
                             updatedAtSettlement=None
@@ -225,7 +225,7 @@ class DeliveryRecordRepository(IDeliveryRecordRepository):
 
                         self.db.add(newSettlement)
 
-            deliveryRecordFound.updatedByDeliveryRecord = userId
+            deliveryRecordFound.updatedByDeliveryRecord = userReference
             deliveryRecordFound.updatedAtDeliveryRecord = now
 
             self.db.commit()

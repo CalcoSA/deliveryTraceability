@@ -15,15 +15,15 @@ class IDeliveryRecordApplication(ABC):
         pass
 
     @abstractmethod
-    def create(self, deliveryData: DeliveryRecordCreateDto, userId: int) -> DeliveryRecord:
+    def create(self, deliveryData: DeliveryRecordCreateDto, userReference: str) -> DeliveryRecord:
         pass
 
     @abstractmethod
-    def createMany(self, deliveryData: DeliveryRecordBulkCreateDto, userId: int) -> List[DeliveryRecord]:
+    def createMany(self, deliveryData: DeliveryRecordBulkCreateDto, userReference: str) -> List[DeliveryRecord]:
         pass
 
     @abstractmethod
-    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userId: int) -> DeliveryRecord:
+    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userReference: str) -> DeliveryRecord:
         pass
 
     @abstractmethod
