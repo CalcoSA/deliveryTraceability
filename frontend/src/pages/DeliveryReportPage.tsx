@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import type { DeliveryReportPeriod, DeliverySettlementReport, } from "../models/DeliveryReport";
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
@@ -1003,126 +1003,128 @@ export function DeliveryReportPage() {
             <CircularProgress sx={{ color: "#4B2E1F" }} />
           </Box>
         ) : (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Periodo</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Punto de venta</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Domiciliario</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Documento</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registrado por</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}> {parameterColumnName} </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Domicilios</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Ausentismo</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Cant. ausentismos</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Valor total</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registros</TableCell>
-              </TableRow>
-            </TableHead>
+          <Box sx={{ width: "100%", overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch", }}>
+            <Table sx={{ minWidth: 1500, tableLayout: "auto", "& .MuiTableCell-root": { whiteSpace: "nowrap", }, }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Periodo</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Punto de venta</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Domiciliario</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Documento</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registrado por</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}> {parameterColumnName} </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Domicilios</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#4B2E1F" }}>Ausentismo</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Cant. ausentismos</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Valor total</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registros</TableCell>
+                </TableRow>
+              </TableHead>
 
-            <TableBody>
-              {groupedReportData.map((pointSaleGroup) => (
-                <Fragment key={pointSaleGroup.groupKey}>
-                  <TableRow>
-                    <TableCell colSpan={11} sx={{ fontWeight: 800, color: "#4B2E1F", bgcolor: "#FFF8EF" }}>
-                      Punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
-                    </TableCell>
-                  </TableRow>
+              <TableBody>
+                {groupedReportData.map((pointSaleGroup) => (
+                  <Fragment key={pointSaleGroup.groupKey}>
+                    <TableRow>
+                      <TableCell colSpan={11} sx={{ fontWeight: 800, color: "#4B2E1F", bgcolor: "#FFF8EF" }}>
+                        Punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
+                      </TableCell>
+                    </TableRow>
 
-                  {pointSaleGroup.domiciliaryGroups.map((domiciliaryGroup) => (
-                    <Fragment key={domiciliaryGroup.groupKey}>
-                      <TableRow>
-                        <TableCell colSpan={11} sx={{ fontWeight: 700, color: "#4B2E1F", bgcolor: "#FAF1E8" }}>
-                          Domiciliario: {domiciliaryGroup.nameDomiciliary} - {domiciliaryGroup.documentDomiciliary}
-                        </TableCell>
-                      </TableRow>
-
-                      {domiciliaryGroup.rows.map((item) => (
-                        <TableRow key={`${item.IdPointSale}-${item.IdDomiciliary}-${item.periodKey}`}>
-                          <TableCell>{item.periodLabel}</TableCell>
-                          <TableCell>{item.codePointSale} - {item.namePointSale}</TableCell>
-                          <TableCell>{item.nameDomiciliary}</TableCell>
-                          <TableCell>{item.documentDomiciliary}</TableCell>
-                          <TableCell>{item.createdByUsers || "Sin información"}</TableCell>
-                          <TableCell align="right">{formatCurrency(item.parameterValueSettlement)}</TableCell>
-                          <TableCell align="right">{item.totalDeliveryQuantity}</TableCell>
-                          <TableCell>{getAbsenceSummary(item.absenceTypes)}</TableCell>
-                          <TableCell align="right">{item.totalAbsences}</TableCell>
-                          <TableCell align="right">{formatCurrency(item.totalValueSettlement)}</TableCell>
-                          <TableCell align="right">{item.totalRecords}</TableCell>
+                    {pointSaleGroup.domiciliaryGroups.map((domiciliaryGroup) => (
+                      <Fragment key={domiciliaryGroup.groupKey}>
+                        <TableRow>
+                          <TableCell colSpan={11} sx={{ fontWeight: 700, color: "#4B2E1F", bgcolor: "#FAF1E8" }}>
+                            Domiciliario: {domiciliaryGroup.nameDomiciliary} - {domiciliaryGroup.documentDomiciliary}
+                          </TableCell>
                         </TableRow>
-                      ))}
 
-                      <TableRow>
-                        <TableCell colSpan={6} sx={{ fontWeight: 800, color: "#4B2E1F" }}>
-                          Subtotal domiciliario: {domiciliaryGroup.nameDomiciliary}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800 }}>
-                          {domiciliaryGroup.totalDeliveryQuantity}
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 800 }}>
-                          
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800 }}>
-                          {domiciliaryGroup.totalAbsences}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800 }}>
-                          {formatCurrency(domiciliaryGroup.totalValueSettlement)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 800 }}>
-                          {domiciliaryGroup.totalRecords}
-                        </TableCell>
-                      </TableRow>
-                    </Fragment>
-                  ))}
+                        {domiciliaryGroup.rows.map((item) => (
+                          <TableRow key={`${item.IdPointSale}-${item.IdDomiciliary}-${item.periodKey}`}>
+                            <TableCell>{item.periodLabel}</TableCell>
+                            <TableCell>{item.codePointSale} - {item.namePointSale}</TableCell>
+                            <TableCell>{item.nameDomiciliary}</TableCell>
+                            <TableCell>{item.documentDomiciliary}</TableCell>
+                            <TableCell>{item.createdByUsers || "Sin información"}</TableCell>
+                            <TableCell align="right">{formatCurrency(item.parameterValueSettlement)}</TableCell>
+                            <TableCell align="right">{item.totalDeliveryQuantity}</TableCell>
+                            <TableCell>{getAbsenceSummary(item.absenceTypes)}</TableCell>
+                            <TableCell align="right">{item.totalAbsences}</TableCell>
+                            <TableCell align="right">{formatCurrency(item.totalValueSettlement)}</TableCell>
+                            <TableCell align="right">{item.totalRecords}</TableCell>
+                          </TableRow>
+                        ))}
 
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ fontWeight: 800, color: "#4B2E1F" }}>
+                            Subtotal domiciliario: {domiciliaryGroup.nameDomiciliary}
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800 }}>
+                            {domiciliaryGroup.totalDeliveryQuantity}
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 800 }}>
+                            
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800 }}>
+                            {domiciliaryGroup.totalAbsences}
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800 }}>
+                            {formatCurrency(domiciliaryGroup.totalValueSettlement)}
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800 }}>
+                            {domiciliaryGroup.totalRecords}
+                          </TableCell>
+                        </TableRow>
+                      </Fragment>
+                    ))}
+
+                    <TableRow>
+                      <TableCell colSpan={6} sx={{ fontWeight: 900, color: "#4B2E1F", bgcolor: "#F7E8D8" }}>
+                        Subtotal punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                        {pointSaleGroup.totalDeliveryQuantity}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                        
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                        {pointSaleGroup.totalAbsences}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                        {formatCurrency(pointSaleGroup.totalValueSettlement)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                        {pointSaleGroup.totalRecords}
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                ))}
+
+                {reportData.length > 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ fontWeight: 900, color: "#4B2E1F", bgcolor: "#F7E8D8" }}>
-                      Subtotal punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
+                    <TableCell colSpan={6} sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                      TOTAL GENERAL
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
-                      {pointSaleGroup.totalDeliveryQuantity}
+                    <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                      {totals.totalDeliveryQuantity}
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
+                    <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                       
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
-                      {pointSaleGroup.totalAbsences}
+                    <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                      {totals.totalAbsences}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
-                      {formatCurrency(pointSaleGroup.totalValueSettlement)}
+                    <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                      {formatCurrency(totals.totalValueSettlement)}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
-                      {pointSaleGroup.totalRecords}
+                    <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
+                      {totals.totalRecords}
                     </TableCell>
                   </TableRow>
-                </Fragment>
-              ))}
-
-              {reportData.length > 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                    TOTAL GENERAL
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                    {totals.totalDeliveryQuantity}
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                    
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                    {totals.totalAbsences}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                    {formatCurrency(totals.totalValueSettlement)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                    {totals.totalRecords}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </Box>
         )}
       </Paper>
 
