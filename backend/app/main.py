@@ -2,6 +2,7 @@ from app.api.applicationUserController import router as applicationUserRouter
 from app.api.deliveryRecordController import router as deliveryRecordRouter
 from app.infrastructure.logging.loggerConfig import setupLogging, getLogger
 from app.api.deliveryReportController import router as deliveryReportRouter
+from app.api.pointSaleEmailController import router as pointSaleEmailRouter
 from app.api.absenceTypeController import router as absenceTypeRouter
 from app.api.domiciliaryController import router as domiciliaryRouter
 from app.api.menuOptionController import router as menuOptionRouter
@@ -72,6 +73,7 @@ app.include_router(parameterRouter)
 app.include_router(deliveryRecordRouter)
 app.include_router(deliveryReportRouter)
 app.include_router(absenceTypeRouter)
+app.include_router(pointSaleEmailRouter)
 
 @app.get("/")
 def root():

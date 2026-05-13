@@ -20,15 +20,15 @@ class IDeliveryRecordRepository(ABC):
         pass
 
     @abstractmethod
-    def create(self, deliveryData: DeliveryRecordCreateDto, userId: int, parameter: Optional[Parameter]) -> DeliveryRecord:
+    def create(self, deliveryData: DeliveryRecordCreateDto, userReference: str, parameter: Optional[Parameter]) -> DeliveryRecord:
         pass
 
     @abstractmethod
-    def createMany(self, deliveryDate: date, IdPointSale: int, records: List[DeliveryRecordBulkItemCreateDto], userId: int, parameter: Optional[Parameter]) -> List[DeliveryRecord]:
+    def createMany(self, deliveryDate: date, IdPointSale: int, records: List[DeliveryRecordBulkItemCreateDto], userReference: str, parameter: Optional[Parameter]) -> List[DeliveryRecord]:
         pass
 
     @abstractmethod
-    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userId: int, parameter: Optional[Parameter]) -> Optional[DeliveryRecord]:
+    def update(self, IdDeliveryRecord: int, deliveryData: DeliveryRecordUpdateDto, userReference: str, parameter: Optional[Parameter]) -> Optional[DeliveryRecord]:
         pass
 
     @abstractmethod

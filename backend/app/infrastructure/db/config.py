@@ -25,9 +25,21 @@ class Settings(BaseSettings):
     INTRANET_SSO_SECRET: str
     INTRANET_SSO_EXPIRE_SECONDS: int = 120
 
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = True
+
+    POINT_SALE_LOGIN_CODE_EXPIRE_MINUTES: int = 10
+    POINT_SALE_LOGIN_MAX_ATTEMPTS: int = 5
+
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"
     )
 
 settings = Settings()

@@ -1,12 +1,16 @@
+from app.domain.dtos.AuthDto import LoginDto, AuthResponseDto, PointSaleEmailCodeRequestDto, PointSaleEmailCodeVerifyDto
+from app.infrastructure.repositories.PointSaleEmailLoginCodeRepository import PointSaleEmailLoginCodeRepository
 from app.infrastructure.repositories.ApplicationUserRepository import ApplicationUserRepository
+from app.infrastructure.repositories.PointSaleEmailRepository import PointSaleEmailRepository
 from app.infrastructure.repositories.WordpressUserRepository import WordpressUserRepository
 from app.application.services.WordpressPasswordVerifier import WordpressPasswordVerifier
+from app.infrastructure.repositories.RoleRepository import RoleRepository
 from app.application.interfaces.IAuthApplication import IAuthApplication
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.application.services.AuthApplication import AuthApplication
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.infrastructure.db.wordpressConnection import getWordpressDb
-from app.domain.dtos.AuthDto import LoginDto, AuthResponseDto
+from app.application.services.EmailService import EmailService
 from app.application.services.JwtService import JwtService
 from app.domain.dtos.apiResponseDto import apiResponseDto
 from app.infrastructure.db.connection import getDb
@@ -26,7 +30,20 @@ def getAuthApplication(db: Session = Depends(getDb), wpDb: Session = Depends(get
     applicationUserRepository = ApplicationUserRepository(db)
     wordpressUserRepository = WordpressUserRepository(wpDb)
     wordpressPasswordVerifier = WordpressPasswordVerifier()
-    return AuthApplication(applicationUserRepository, wordpressUserRepository, wordpressPasswordVerifier)
+    roleRepository = RoleRepository(db)
+    pointSaleEmailRepository = PointSaleEmailRepository(db)
+    pointSaleEmailLoginCodeRepository = PointSaleEmailLoginCodeRepository(db)
+    emailService = EmailService()
+
+    return AuthApplication(
+        applicationUserRepository,
+        wordpressUserRepository,
+        wordpressPasswordVerifier,
+        roleRepository,
+        pointSaleEmailRepository,
+        pointSaleEmailLoginCodeRepository,
+        emailService
+    )
 
 def getSafeLoginUser(loginData: LoginDto) -> str:
     return (
@@ -90,17 +107,46 @@ def intranetAccess(userLogin: str = Query(...), ts: int = Query(...), sig: str =
 @router.get("/me", response_model=apiResponseDto[AuthResponseDto])
 def me(payload: dict = Depends(getCurrentPayload), service: IAuthApplication = Depends(getAuthApplication)):
     try:
-        data = service.getCurrentUser(payload["wordpressUserId"])
+        authType = payload.get("authType")
+
+        if authType == "POINT_SALE_EMAIL":
+            data = service.getCurrentPointSaleEmailUser(payload["pointSaleEmailId"])
+        else:
+            data = service.getCurrentUser(payload["wordpressUserId"])
+
         return apiResponseDto(isSuccess=True, Message="Usuario autenticado obtenido correctamente.", result=data)
 
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al obtener el usuario autenticado.")
+    
+@router.post("/point-sale/request-code", response_model=apiResponseDto[dict])
+def requestPointSaleEmailCode(data: PointSaleEmailCodeRequestDto, service: IAuthApplication = Depends(getAuthApplication)):
+    try:
+        service.requestPointSaleEmailCode(str(data.emailPointSale))
+        return apiResponseDto(isSuccess=True, Message="Código enviado correctamente.", result={})
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     except Exception as e:
-        logger.exception("Error inesperado al obtener usuario autenticado. Payload=%s", payload)
-        detail = "Error al obtener el usuario autenticado."
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al enviar el código de acceso.")
 
-        if APP_ENV in ["development", "qa", "local"]:
-            detail = f"Error al obtener el usuario autenticado: {str(e)}"
 
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
+@router.post("/point-sale/verify-code", response_model=apiResponseDto[AuthResponseDto])
+def verifyPointSaleEmailCode(data: PointSaleEmailCodeVerifyDto, service: IAuthApplication = Depends(getAuthApplication)):
+    try:
+        result = service.verifyPointSaleEmailCode(str(data.emailPointSale), data.code)
+
+        return apiResponseDto(isSuccess=True, Message="Inicio de sesión correcto.", result=result)
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al validar el código de acceso.")

@@ -12,9 +12,9 @@ class DeliverySettlement(Base):
     parameterValueSettlement = Column(Numeric(12, 2), nullable=False)
     deliveryQuantitySettlement = Column(Integer, nullable=False)
     totalValueSettlement = Column(Numeric(14, 2), nullable=False)
-    createdBySettlement = Column(Integer, nullable=False)
+    createdBySettlement = Column(String(150), nullable=False)
     createdAtSettlement = Column(DateTime, nullable=False)
-    updatedBySettlement = Column(Integer, nullable=True)
+    updatedBySettlement = Column(String(150), nullable=True)
     updatedAtSettlement = Column(DateTime, nullable=True)
     
     deliveryRecord = relationship("DeliveryRecord", back_populates="settlement")

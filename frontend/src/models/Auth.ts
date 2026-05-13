@@ -20,11 +20,13 @@ export interface MenuOptionAuth {
 }
 
 export interface AuthUser {
-  IdApplicationUser: number;
-  wordpressUserId: number;
+  IdApplicationUser: number | null;
+  wordpressUserId: number | null;
   wordpressUserLogin: string;
   wordpressUserEmail: string;
   wordpressDisplayName: string;
+  pointSaleEmailId?: number | null;
+  pointSaleEmail?: string | null;
   roles: RoleAuth[];
   menuOptions: MenuOptionAuth[];
 }

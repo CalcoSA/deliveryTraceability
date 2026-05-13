@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Date, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Date, DateTime, ForeignKey, UniqueConstraint, String
 from app.infrastructure.db.connection import Base
 from sqlalchemy.orm import relationship
 
@@ -11,9 +11,9 @@ class DeliveryRecord(Base):
     IdDomiciliary = Column(Integer, ForeignKey("Domiciliary.IdDomiciliary"), nullable=False)
     deliveryQuantity = Column(Integer, nullable=False, default=0)
     IdAbsenceType = Column(Integer, ForeignKey("AbsenceType.IdAbsenceType"), nullable=True)
-    createdByDeliveryRecord = Column(Integer, nullable=False)
+    createdByDeliveryRecord = Column(String(150), nullable=False)
     createdAtDeliveryRecord = Column(DateTime, nullable=False)
-    updatedByDeliveryRecord = Column(Integer, nullable=True)
+    updatedByDeliveryRecord = Column(String(150), nullable=True)
     updatedAtDeliveryRecord = Column(DateTime, nullable=True)
 
     pointSaleRelation = relationship("pointSale")
