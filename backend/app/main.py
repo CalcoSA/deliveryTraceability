@@ -19,7 +19,7 @@ from time import time
 setupLogging()
 logger = getLogger(__name__)
 
-app = FastAPI(title="Delivery Traceability API", version="1.0.0")
+app = FastAPI(title="Delivery Traceability API", version="1.0.0", root_path="/api")
 
 @app.middleware("http")
 async def logRequests(request: Request, call_next):
