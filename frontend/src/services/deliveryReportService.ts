@@ -1,4 +1,4 @@
-import type { DeliverySettlementReport, DeliverySettlementReportFilters, } from "../models/DeliveryReport";
+import type { DeliverySettlementReport, DeliverySettlementReportFilters, UpdateDeliveryQuantityRequest, UpdateDeliveryQuantityResponse } from "../models/DeliveryReport";
 import type { ApiResponse } from "../models/ApiResponse";
 import { apiClient } from "./apiClient";
 
@@ -20,6 +20,11 @@ export const deliveryReportService = {
     }
 
     const response = await apiClient.get<ApiResponse<DeliverySettlementReport[]>>("/delivery-report/settlement", { params });
+    return response.data;
+  },
+
+  async updateDeliveryQuantityFromReport(IdDeliveryRecord: number, data: UpdateDeliveryQuantityRequest): Promise<ApiResponse<UpdateDeliveryQuantityResponse>> {
+    const response = await apiClient.put<ApiResponse<UpdateDeliveryQuantityResponse>>(`/delivery-report/settlement/${IdDeliveryRecord}/quantity`, data);
     return response.data;
   },
 };
