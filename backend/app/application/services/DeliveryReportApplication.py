@@ -1,6 +1,7 @@
 from app.application.interfaces.IDeliveryReportApplication import IDeliveryReportApplication
 from app.domain.interfaces.IDeliveryReportRepository import IDeliveryReportRepository
-from app.domain.dtos.DeliveryReportDto import DeliverySettlementReportResponseDto
+from app.domain.dtos.DeliveryReportDto import DeliverySettlementReportResponseDto 
+from app.domain.dtos.DeliveryRecordDto import UpdateDeliveryQuantityResponseDto
 from typing import List, Optional
 from datetime import date
 
@@ -21,3 +22,13 @@ class DeliveryReportApplication(IDeliveryReportApplication):
             raise ValueError("La fecha final no puede ser menor que la fecha inicial.")
 
         return self.deliveryReportRepository.getSettlementReport(startDate=startDate, endDate=endDate, period=cleanPeriod, IdPointSale=IdPointSale, IdDomiciliary=IdDomiciliary)
+    
+    def updateDeliveryQuantityFromReport(self, IdDeliveryRecord: int, deliveryQuantity: int) -> UpdateDeliveryQuantityResponseDto:
+
+        if IdDeliveryRecord <= 0:
+            raise ValueError("El identificador del registro de domicilio no es válido.")
+
+        if deliveryQuantity < 0:
+            raise ValueError("La cantidad de domicilios no puede ser menor que cero.")
+
+        return self.deliveryReportRepository.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=deliveryQuantity)
