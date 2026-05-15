@@ -1,5 +1,5 @@
 from app.domain.dtos.AbsenceTypeDto import AbsenceTypeResponseDto
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import date, datetime
 from typing import Optional, List
 from decimal import Decimal
@@ -58,3 +58,19 @@ class DeliveryRecordBulkCreateDto(BaseModel):
     deliveryDate: date
     IdPointSale: int
     records: List[DeliveryRecordBulkItemCreateDto]
+
+class UpdateDeliveryQuantityRequestDto(BaseModel):
+    deliveryQuantity: int = Field(..., ge=0)
+
+class UpdateDeliveryQuantityResponseDto(BaseModel):
+    IdDeliveryRecord: int
+    deliveryDate: date
+    IdPointSale: int
+    IdDomiciliary: int
+    deliveryQuantity: int
+    IdDeliverySettlement: int
+    IdParameter: int
+    parameterNameSettlement: str
+    parameterValueSettlement: Decimal
+    deliveryQuantitySettlement: int
+    totalValueSettlement: Decimal

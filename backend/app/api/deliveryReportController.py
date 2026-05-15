@@ -1,7 +1,8 @@
+from app.domain.dtos.DeliveryRecordDto import ( UpdateDeliveryQuantityRequestDto, UpdateDeliveryQuantityResponseDto )
 from app.infrastructure.repositories.DeliveryReportRepository import DeliveryReportRepository
 from app.application.interfaces.IDeliveryReportApplication import IDeliveryReportApplication
 from app.application.services.DeliveryReportApplication import DeliveryReportApplication
-from app.domain.dtos.DeliveryReportDto import DeliverySettlementReportResponseDto
+from app.domain.dtos.DeliveryReportDto import ( DeliverySettlementReportResponseDto )
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.infrastructure.logging.loggerConfig import getLogger
 from app.domain.dtos.apiResponseDto import apiResponseDto
@@ -38,3 +39,19 @@ def getSettlementReport(startDate: date = Query(...), endDate: date = Query(...)
     except Exception:
         logger.exception("Error inesperado obteniendo reporte de domicilios | startDate=%s | endDate=%s | period=%s | IdPointSale=%s | IdDomiciliary=%s", startDate, endDate, period, IdPointSale, IdDomiciliary)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al obtener el reporte de domicilios.")
+    
+@router.put("/settlement/{IdDeliveryRecord}/quantity", response_model=apiResponseDto[UpdateDeliveryQuantityResponseDto])
+def updateDeliveryQuantityFromReport(IdDeliveryRecord: int, request: UpdateDeliveryQuantityRequestDto, payload: dict = Depends(getCurrentPayload), service: IDeliveryReportApplication = Depends(getDeliveryReportApplication)):
+    try:
+        logger.info("Actualizando cantidad de domicilios desde reporte | IdDeliveryRecord=%s | deliveryQuantity=%s", IdDeliveryRecord, request.deliveryQuantity)
+        data = service.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=request.deliveryQuantity)
+        logger.info("Cantidad de domicilios actualizada correctamente desde reporte | IdDeliveryRecord=%s | totalValueSettlement=%s", IdDeliveryRecord, data.totalValueSettlement)
+        return apiResponseDto(isSuccess=True, Message="Cantidad de domicilios actualizada correctamente.", result=data)
+
+    except ValueError as e:
+        logger.warning("Validación fallida actualizando cantidad desde reporte | IdDeliveryRecord=%s | error=%s", IdDeliveryRecord, str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    except Exception:
+        logger.exception("Error inesperado actualizando cantidad desde reporte | IdDeliveryRecord=%s", IdDeliveryRecord)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al actualizar la cantidad de domicilios.")

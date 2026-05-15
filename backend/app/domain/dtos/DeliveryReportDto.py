@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Optional
 
 class DeliverySettlementReportResponseDto(BaseModel):
+    IdDeliveryRecord: Optional[int] = None
     periodType: str
     periodKey: str
     periodLabel: str

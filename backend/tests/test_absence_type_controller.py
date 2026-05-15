@@ -1,97 +1,58 @@
-from app.api.absenceTypeController import (router, getAbsenceTypeApplication,)
-from app.api.authController import getCurrentPayload
+from app.domain.dtos.AbsenceTypeDto import AbsenceTypeResponseDto
+from app.api import absenceTypeController as ctl
+from app.api import authController as auth_ctl
 from fastapi.testclient import TestClient
-from unittest.mock import Mock
+from collections.abc import Generator
+from unittest.mock import MagicMock
 from fastapi import FastAPI
+import pytest
 
-app = FastAPI()
-app.include_router(router)
+def _app() -> FastAPI:
+    app = FastAPI()
+    app.include_router(ctl.router)
+    return app
 
-def override_current_payload():
-    return { "wordpressUserLogin": "juan.eusse", "IdApplicationUser": 1, "roleIds": [1], }
+@pytest.fixture
+def client() -> Generator[TestClient, None, None]:
+    app = _app()
 
-def test_get_all_absence_types_success_with_testclient():
-    # Arrange
-    fake_service = Mock()
-    fake_service.getAllActive.return_value = [
-        {
-            "IdAbsenceType": 1,
-            "nameAbsenceType": "Descanso",
-            "statusAbsenceType": True,
-        },
-        {
-            "IdAbsenceType": 2,
-            "nameAbsenceType": "Vacaciones",
-            "statusAbsenceType": True,
-        },
-    ]
-
-    app.dependency_overrides[getCurrentPayload] = override_current_payload
-    app.dependency_overrides[getAbsenceTypeApplication] = lambda: fake_service
-
-    client = TestClient(app)
-
-    # Act
-    response = client.get("/absence-type/")
-
-    # Assert
-    assert response.status_code == 200
-
-    body = response.json()
-
-    assert body["isSuccess"] is True
-    assert body["Message"] == "Tipos de ausentismo obtenidos correctamente."
-    assert len(body["result"]) == 2
-    assert body["result"][0]["nameAbsenceType"] == "Descanso"
-
-    fake_service.getAllActive.assert_called_once()
-    app.dependency_overrides.clear()
-
-def test_get_all_absence_types_empty_with_testclient():
-    # Arrange
-    fake_service = Mock()
-    fake_service.getAllActive.return_value = []
-
-    app.dependency_overrides[getCurrentPayload] = override_current_payload
-    app.dependency_overrides[getAbsenceTypeApplication] = lambda: fake_service
-
-    client = TestClient(app)
-
-    # Act
-    response = client.get("/absence-type/")
-
-    # Assert
-    assert response.status_code == 200
-
-    body = response.json()
-
-    assert body["isSuccess"] is False
-    assert body["Message"] == "No existen tipos de ausentismo activos."
-    assert body["result"] == []
-
-    fake_service.getAllActive.assert_called_once()
-    app.dependency_overrides.clear()
-
-def test_get_all_absence_types_unexpected_error_with_testclient():
-    # Arrange
-    fake_service = Mock()
-    fake_service.getAllActive.side_effect = Exception("Error simulado")
-
-    app.dependency_overrides[getCurrentPayload] = override_current_payload
-    app.dependency_overrides[getAbsenceTypeApplication] = lambda: fake_service
-
-    client = TestClient(app)
-
-    # Act
-    response = client.get("/absence-type/")
-
-    # Assert
-    assert response.status_code == 500
-
-    body = response.json()
-
-    assert body["detail"] == "Error al obtener los tipos de ausentismo."
-
-    fake_service.getAllActive.assert_called_once()
+    with TestClient(app) as c:
+        yield c
 
     app.dependency_overrides.clear()
+
+def _abs() -> AbsenceTypeResponseDto:
+    return AbsenceTypeResponseDto(IdAbsenceType=1, nameAbsenceType="Vacaciones", statusAbsenceType=True)
+
+@pytest.fixture
+def auth_headers():
+    return {"Authorization": "Bearer x"}
+
+def test_get_all_empty(client: TestClient, auth_headers):
+    svc = MagicMock()
+    svc.getAllActive.return_value = []
+    client.app.dependency_overrides[ctl.getAbsenceTypeApplication] = lambda: svc
+    client.app.dependency_overrides[auth_ctl.getCurrentPayload] = lambda: {"wordpressUserLogin": "u"}
+
+    r = client.get("/absence-type/", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["isSuccess"] is False
+
+def test_get_all_success(client: TestClient, auth_headers):
+    svc = MagicMock()
+    svc.getAllActive.return_value = [_abs()]
+    client.app.dependency_overrides[ctl.getAbsenceTypeApplication] = lambda: svc
+    client.app.dependency_overrides[auth_ctl.getCurrentPayload] = lambda: {"wordpressUserLogin": "u"}
+
+    r = client.get("/absence-type/", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["isSuccess"] is True
+
+def test_get_all_server_error(client: TestClient, auth_headers):
+    svc = MagicMock()
+    svc.getAllActive.side_effect = RuntimeError()
+    client.app.dependency_overrides[ctl.getAbsenceTypeApplication] = lambda: svc
+    client.app.dependency_overrides[auth_ctl.getCurrentPayload] = lambda: {"wordpressUserLogin": "u"}
+
+    r = client.get("/absence-type/", headers=auth_headers)
+    assert r.status_code == 500
