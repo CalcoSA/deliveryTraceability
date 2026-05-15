@@ -1,4 +1,5 @@
 from app.domain.interfaces.IDeliveryReportRepository import IDeliveryReportRepository
+from app.domain.dtos.DeliveryRecordDto import UpdateDeliveryQuantityResponseDto
 from app.domain.entities.DeliverySettlement import DeliverySettlement
 from app.domain.entities.ApplicationUser import ApplicationUser
 from app.domain.entities.DeliveryRecord import DeliveryRecord
@@ -27,6 +28,7 @@ class DeliveryReportRepository(IDeliveryReportRepository):
         absenceTypesExpression = func.group_concat(AbsenceType.nameAbsenceType)
         query = (
             self.db.query(
+                DeliveryRecord.IdDeliveryRecord.label("IdDeliveryRecord"),
                 periodExpression.label("periodKey"),
                 pointSale.IdPointSale.label("IdPointSale"),
                 pointSale.codePointSale.label("codePointSale"),
@@ -76,6 +78,7 @@ class DeliveryReportRepository(IDeliveryReportRepository):
         rows = (
             query
             .group_by(
+                DeliveryRecord.IdDeliveryRecord,
                 periodExpression,
                 pointSale.IdPointSale,
                 pointSale.codePointSale,
@@ -97,6 +100,7 @@ class DeliveryReportRepository(IDeliveryReportRepository):
 
         return [
             {
+                "IdDeliveryRecord": row.IdDeliveryRecord,
                 "periodType": period,
                 "periodKey": str(row.periodKey),
                 "periodLabel": self._getPeriodLabel(period, row.periodKey),
@@ -141,3 +145,36 @@ class DeliveryReportRepository(IDeliveryReportRepository):
             return str(periodKey)
 
         return str(periodKey)
+    
+    def updateDeliveryQuantityFromReport(self, IdDeliveryRecord: int, deliveryQuantity: int) -> UpdateDeliveryQuantityResponseDto:
+        deliveryRecord = (self.db.query(DeliveryRecord).filter(DeliveryRecord.IdDeliveryRecord == IdDeliveryRecord).first())
+
+        if deliveryRecord is None:
+            raise ValueError("No existe el registro de domicilio que se desea editar.")
+
+        deliverySettlement = (self.db.query(DeliverySettlement).filter(DeliverySettlement.IdDeliveryRecord == IdDeliveryRecord).first())
+
+        if deliverySettlement is None:
+            raise ValueError("No existe liquidación asociada al registro de domicilio.")
+
+        deliveryRecord.deliveryQuantity = deliveryQuantity
+        deliverySettlement.deliveryQuantitySettlement = deliveryQuantity
+        deliverySettlement.totalValueSettlement = ( deliverySettlement.parameterValueSettlement * deliveryQuantity)
+
+        self.db.commit()
+        self.db.refresh(deliveryRecord)
+        self.db.refresh(deliverySettlement)
+
+        return UpdateDeliveryQuantityResponseDto(
+            IdDeliveryRecord=deliveryRecord.IdDeliveryRecord,
+            deliveryDate=deliveryRecord.deliveryDate,
+            IdPointSale=deliveryRecord.IdPointSale,
+            IdDomiciliary=deliveryRecord.IdDomiciliary,
+            deliveryQuantity=deliveryRecord.deliveryQuantity,
+            IdDeliverySettlement=deliverySettlement.IdDeliverySettlement,
+            IdParameter=deliverySettlement.IdParameter,
+            parameterNameSettlement=deliverySettlement.parameterNameSettlement,
+            parameterValueSettlement=deliverySettlement.parameterValueSettlement,
+            deliveryQuantitySettlement=deliverySettlement.deliveryQuantitySettlement,
+            totalValueSettlement=deliverySettlement.totalValueSettlement
+        )
