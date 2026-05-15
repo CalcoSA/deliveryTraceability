@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import type { DeliveryReportPeriod, DeliverySettlementReport, } from "../models/DeliveryReport";
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
@@ -10,6 +10,7 @@ import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import { deliveryReportService } from "../services/deliveryReportService";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { domiciliaryService } from "../services/domiciliaryService";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { pointSaleService } from "../services/pointSaleService";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { getErrorMessage } from "../services/errorService";
@@ -68,18 +69,23 @@ const getFirstDayOfCurrentMonth = () => {
 
 export function DeliveryReportPage() {
   const [responseModal, setResponseModal] = useState<ResponseModalState>(emptyResponseModal);
+  const [editingRow, setEditingRow] = useState<DeliverySettlementReport | null>(null);
   const [selectedDomiciliaryId, setSelectedDomiciliaryId] = useState<number>(0);
   const [reportData, setReportData] = useState<DeliverySettlementReport[]>([]);
   const [selectedPointSaleId, setSelectedPointSaleId] = useState<number>(0);  
   const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth());
   const [loadingDomiciliaries, setLoadingDomiciliaries] = useState(false);
-  const [domiciliaries, setDomiciliaries] = useState<Domiciliary[]>([]);  
+  const [domiciliaries, setDomiciliaries] = useState<Domiciliary[]>([]);
+  const [editValidationError, setEditValidationError] = useState("");
   const [loadingPointSales, setLoadingPointSales] = useState(false);
   const [period, setPeriod] = useState<DeliveryReportPeriod>("day");
   const [pointSales, setPointSales] = useState<PointSale[]>([]);
+  const [savingQuantity, setSavingQuantity] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const [editingQuantity, setEditingQuantity] = useState("");
   const [loadingReport, setLoadingReport] = useState(false);
-  const [endDate, setEndDate] = useState(getToday());  
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [endDate, setEndDate] = useState(getToday()); 
 
   const showResponseModal = (severity: ResponseModalSeverity, title: string, message: string) => {
     setResponseModal({
@@ -366,6 +372,109 @@ export function DeliveryReportPage() {
     setDomiciliaries([]);
     setReportData([]);
     setValidationError("");
+  };
+
+  const handleOpenEditModal = (item: DeliverySettlementReport) => {
+    if (period !== "day") {
+      showResponseModal(
+        "warning",
+        "Edición no disponible",
+        "Para editar la cantidad de domicilios debes consultar el reporte por día."
+      );
+      return;
+    }
+
+    if (!item.IdDeliveryRecord) {
+      showResponseModal(
+        "warning",
+        "No se puede editar",
+        "Este registro no tiene identificador de domicilio. Revisa que el backend esté devolviendo IdDeliveryRecord."
+      );
+      return;
+    }
+
+    if (Number(item.totalRecords ?? 0) !== 1) {
+      showResponseModal(
+        "warning",
+        "No se puede editar",
+        "Este resultado agrupa más de un registro. Filtra el reporte por día para editar un registro puntual."
+      );
+      return;
+    }
+
+    setEditingRow(item);
+    setEditingQuantity(String(Number(item.totalDeliveryQuantity ?? 0)));
+    setEditValidationError("");
+    setEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    if (savingQuantity) return;
+
+    setEditModalOpen(false);
+    setEditingRow(null);
+    setEditingQuantity("");
+    setEditValidationError("");
+  };
+
+  const handleSaveQuantity = async () => {
+    try {
+      if (!editingRow?.IdDeliveryRecord) {
+        setEditValidationError("No se encontró el identificador del registro.");
+        return;
+      }
+
+      const quantity = Number(editingQuantity);
+
+      if (!Number.isInteger(quantity)) {
+        setEditValidationError("La cantidad debe ser un número entero.");
+        return;
+      }
+
+      if (quantity <= 0) {
+        setEditValidationError("La cantidad de domicilios debe ser mayor a cero.");
+        return;
+      }
+
+      setSavingQuantity(true);
+      setEditValidationError("");
+
+      const response = await deliveryReportService.updateDeliveryQuantityFromReport(
+        editingRow.IdDeliveryRecord,
+        {
+          deliveryQuantity: quantity,
+        }
+      );
+
+      if (!response.isSuccess || !response.result) {
+        showResponseModal(
+          "warning",
+          "No se pudo actualizar",
+          response.Message || "No fue posible actualizar la cantidad de domicilios."
+        );
+        return;
+      }
+
+      showResponseModal(
+        "success",
+        "Cantidad actualizada",
+        response.Message || "La cantidad de domicilios fue actualizada correctamente."
+      );
+
+      setEditModalOpen(false);
+      setEditingRow(null);
+      setEditingQuantity("");
+
+      await handleSearchReport();
+    } catch (err) {
+      showResponseModal(
+        "error",
+        "Error al actualizar",
+        getErrorMessage(err)
+      );
+    } finally {
+      setSavingQuantity(false);
+    }
   };
 
   const handleExportReport = () => {
@@ -1018,6 +1127,7 @@ export function DeliveryReportPage() {
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Cant. ausentismos</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Valor total</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registros</TableCell>
+                  <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
 
@@ -1025,7 +1135,7 @@ export function DeliveryReportPage() {
                 {groupedReportData.map((pointSaleGroup) => (
                   <Fragment key={pointSaleGroup.groupKey}>
                     <TableRow>
-                      <TableCell colSpan={11} sx={{ fontWeight: 800, color: "#4B2E1F", bgcolor: "#FFF8EF" }}>
+                      <TableCell colSpan={12} sx={{ fontWeight: 800, color: "#4B2E1F", bgcolor: "#FFF8EF" }}>
                         Punto de venta: {pointSaleGroup.codePointSale} - {pointSaleGroup.namePointSale}
                       </TableCell>
                     </TableRow>
@@ -1033,7 +1143,7 @@ export function DeliveryReportPage() {
                     {pointSaleGroup.domiciliaryGroups.map((domiciliaryGroup) => (
                       <Fragment key={domiciliaryGroup.groupKey}>
                         <TableRow>
-                          <TableCell colSpan={11} sx={{ fontWeight: 700, color: "#4B2E1F", bgcolor: "#FAF1E8" }}>
+                          <TableCell colSpan={12} sx={{ fontWeight: 700, color: "#4B2E1F", bgcolor: "#FAF1E8" }}>
                             Domiciliario: {domiciliaryGroup.nameDomiciliary} - {domiciliaryGroup.documentDomiciliary}
                           </TableCell>
                         </TableRow>
@@ -1051,6 +1161,32 @@ export function DeliveryReportPage() {
                             <TableCell align="right">{item.totalAbsences}</TableCell>
                             <TableCell align="right">{formatCurrency(item.totalValueSettlement)}</TableCell>
                             <TableCell align="right">{item.totalRecords}</TableCell>
+
+                            <TableCell align="center">
+                              <Tooltip
+                                title={
+                                  period === "day"
+                                    ? "Editar cantidad de domicilios"
+                                    : "Solo se puede editar consultando por día"
+                                }
+                              >
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenEditModal(item)}
+                                    disabled={loadingReport || period !== "day" || !item.IdDeliveryRecord}
+                                    sx={{
+                                      color: "#4B2E1F",
+                                      "&:hover": {
+                                        bgcolor: "rgba(75, 46, 31, 0.08)",
+                                      },
+                                    }}
+                                  >
+                                    <EditOutlinedIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </TableCell>
                           </TableRow>
                         ))}
 
@@ -1061,8 +1197,7 @@ export function DeliveryReportPage() {
                           <TableCell align="right" sx={{ fontWeight: 800 }}>
                             {domiciliaryGroup.totalDeliveryQuantity}
                           </TableCell>
-                          <TableCell sx={{ fontWeight: 800 }}>
-                            
+                          <TableCell sx={{ fontWeight: 800 }}>  
                           </TableCell>
                           <TableCell align="right" sx={{ fontWeight: 800 }}>
                             {domiciliaryGroup.totalAbsences}
@@ -1073,6 +1208,7 @@ export function DeliveryReportPage() {
                           <TableCell align="right" sx={{ fontWeight: 800 }}>
                             {domiciliaryGroup.totalRecords}
                           </TableCell>
+                          <TableCell />
                         </TableRow>
                       </Fragment>
                     ))}
@@ -1084,8 +1220,7 @@ export function DeliveryReportPage() {
                       <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
                         {pointSaleGroup.totalDeliveryQuantity}
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
-                        
+                      <TableCell sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>                        
                       </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
                         {pointSaleGroup.totalAbsences}
@@ -1096,6 +1231,7 @@ export function DeliveryReportPage() {
                       <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
                         {pointSaleGroup.totalRecords}
                       </TableCell>
+                      <TableCell sx={{ bgcolor: "#F7E8D8" }} />
                     </TableRow>
                   </Fragment>
                 ))}
@@ -1109,7 +1245,6 @@ export function DeliveryReportPage() {
                       {totals.totalDeliveryQuantity}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
-                      
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                       {totals.totalAbsences}
@@ -1120,6 +1255,7 @@ export function DeliveryReportPage() {
                     <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                       {totals.totalRecords}
                     </TableCell>
+                    <TableCell sx={{ bgcolor: "#4B2E1F" }} />
                   </TableRow>
                 )}
               </TableBody>
@@ -1127,6 +1263,114 @@ export function DeliveryReportPage() {
           </Box>
         )}
       </Paper>
+
+      <Dialog
+        open={editModalOpen}
+        onClose={handleCloseEditModal}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle
+          sx={{
+            color: "#4B2E1F",
+            fontWeight: 700,
+          }}
+        >
+          Editar cantidad de domicilios
+        </DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {editingRow && (
+              <Paper
+                elevation={0}
+                sx={{
+                  border: "1px solid #E0CDBB",
+                  borderRadius: 2,
+                  p: 2,
+                  bgcolor: "#FFF8EF",
+                }}
+              >
+                <Typography sx={{ color: "#4B2E1F", fontWeight: 700 }}>
+                  {editingRow.nameDomiciliary}
+                </Typography>
+
+                <Typography sx={{ color: "#8B6A55", fontSize: 14 }}>
+                  Documento: {editingRow.documentDomiciliary}
+                </Typography>
+
+                <Typography sx={{ color: "#8B6A55", fontSize: 14 }}>
+                  Punto de venta: {editingRow.codePointSale} - {editingRow.namePointSale}
+                </Typography>
+
+                <Typography sx={{ color: "#8B6A55", fontSize: 14 }}>
+                  Fecha / periodo: {editingRow.periodLabel}
+                </Typography>
+
+                <Typography sx={{ color: "#8B6A55", fontSize: 14 }}>
+                  Valor actual: {formatCurrency(editingRow.totalValueSettlement)}
+                </Typography>
+              </Paper>
+            )}
+
+            {editValidationError && (
+              <Alert severity="warning">{editValidationError}</Alert>
+            )}
+
+            <TextField
+              label="Nueva cantidad de domicilios"
+              type="number"
+              value={editingQuantity}
+              disabled={savingQuantity}
+              fullWidth
+              onChange={(event) => setEditingQuantity(event.target.value)}
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  step: 1,
+                },
+              }}
+            />
+
+            {editingRow && (
+              <Alert severity="info">
+                El valor total se recalculará automáticamente con el valor unitario actual de{" "}
+                {formatCurrency(editingRow.parameterValueSettlement)}.
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseEditModal}
+            disabled={savingQuantity}
+            sx={{
+              color: "#4B2E1F",
+              textTransform: "none",
+            }}
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={handleSaveQuantity}
+            disabled={savingQuantity}
+            sx={{
+              bgcolor: "#4B2E1F",
+              color: "#FFFFFF",
+              textTransform: "none",
+              fontWeight: 600,
+              "&:hover": {
+                bgcolor: "#3A2318",
+              },
+            }}
+          >
+            {savingQuantity ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ResponseModal
         open={responseModal.open}

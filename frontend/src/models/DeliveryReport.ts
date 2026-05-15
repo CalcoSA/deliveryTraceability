@@ -1,6 +1,7 @@
 export type DeliveryReportPeriod = "day" | "week" | "month";
 
 export interface DeliverySettlementReport {
+  IdDeliveryRecord?: number;
   periodType: DeliveryReportPeriod;
   periodKey: string;
   periodLabel: string;
@@ -26,4 +27,22 @@ export interface DeliverySettlementReportFilters {
   period: DeliveryReportPeriod;
   IdPointSale?: number;
   IdDomiciliary?: number;
+}
+
+export interface UpdateDeliveryQuantityRequest {
+  deliveryQuantity: number;
+}
+
+export interface UpdateDeliveryQuantityResponse {
+  IdDeliveryRecord: number;
+  deliveryDate: string;
+  IdPointSale: number;
+  IdDomiciliary: number;
+  deliveryQuantity: number;
+  IdDeliverySettlement: number;
+  IdParameter: number;
+  parameterNameSettlement: string;
+  parameterValueSettlement: number;
+  deliveryQuantitySettlement: number;
+  totalValueSettlement: number;
 }
