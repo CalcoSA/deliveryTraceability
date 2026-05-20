@@ -468,7 +468,7 @@ export function DeliveryRegistrationPage() {
                   align="center"
                   sx={{ fontWeight: 700, color: "#4B2E1F" }}
                 >
-                  Descanso
+                  Ausentismo
                 </TableCell>
               </TableRow>
             </TableHead>
