@@ -16,6 +16,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { getErrorMessage } from "../services/errorService";
 import type { Domiciliary } from "../models/Domiciliary";
 import type { PointSale } from "../models/PointSale";
+import { useAuth } from "../context/AuthContext";
 import * as XLSX from "xlsx-js-style";
 
 interface ResponseModalState {
@@ -85,7 +86,18 @@ export function DeliveryReportPage() {
   const [editingQuantity, setEditingQuantity] = useState("");
   const [loadingReport, setLoadingReport] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [endDate, setEndDate] = useState(getToday()); 
+  const [endDate, setEndDate] = useState(getToday());
+  const { user } = useAuth();
+  const normalizeRole = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  const canUpdateDeliveryQuantity =
+    user?.roles?.some((role) =>
+      ["operario", "administrador"].includes(normalizeRole(role.nameRole))
+    ) ?? false;
 
   const showResponseModal = (severity: ResponseModalSeverity, title: string, message: string) => {
     setResponseModal({
@@ -1127,7 +1139,7 @@ export function DeliveryReportPage() {
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Cant. ausentismos</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Valor total</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Registros</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
+                  {canUpdateDeliveryQuantity && ( <TableCell align="center" sx={{ fontWeight: 700, color: "#4B2E1F" }}>Acciones</TableCell> )}
                 </TableRow>
               </TableHead>
 
@@ -1162,31 +1174,33 @@ export function DeliveryReportPage() {
                             <TableCell align="right">{formatCurrency(item.totalValueSettlement)}</TableCell>
                             <TableCell align="right">{item.totalRecords}</TableCell>
 
-                            <TableCell align="center">
-                              <Tooltip
-                                title={
-                                  period === "day"
-                                    ? "Editar cantidad de domicilios"
-                                    : "Solo se puede editar consultando por día"
-                                }
-                              >
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleOpenEditModal(item)}
-                                    disabled={loadingReport || period !== "day" || !item.IdDeliveryRecord}
-                                    sx={{
-                                      color: "#4B2E1F",
-                                      "&:hover": {
-                                        bgcolor: "rgba(75, 46, 31, 0.08)",
-                                      },
-                                    }}
-                                  >
-                                    <EditOutlinedIcon fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            </TableCell>
+                            {canUpdateDeliveryQuantity && (
+                              <TableCell align="center">
+                                <Tooltip
+                                  title={
+                                    period === "day"
+                                      ? "Editar cantidad de domicilios"
+                                      : "Solo se puede editar consultando por día"
+                                  }
+                                >
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleOpenEditModal(item)}
+                                      disabled={loadingReport || period !== "day" || !item.IdDeliveryRecord}
+                                      sx={{
+                                        color: "#4B2E1F",
+                                        "&:hover": {
+                                          bgcolor: "rgba(75, 46, 31, 0.08)",
+                                        },
+                                      }}
+                                    >
+                                      <EditOutlinedIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
 
@@ -1208,7 +1222,7 @@ export function DeliveryReportPage() {
                           <TableCell align="right" sx={{ fontWeight: 800 }}>
                             {domiciliaryGroup.totalRecords}
                           </TableCell>
-                          <TableCell />
+                          {canUpdateDeliveryQuantity && <TableCell />}
                         </TableRow>
                       </Fragment>
                     ))}
@@ -1231,7 +1245,7 @@ export function DeliveryReportPage() {
                       <TableCell align="right" sx={{ fontWeight: 900, bgcolor: "#F7E8D8" }}>
                         {pointSaleGroup.totalRecords}
                       </TableCell>
-                      <TableCell sx={{ bgcolor: "#F7E8D8" }} />
+                      {canUpdateDeliveryQuantity && <TableCell sx={{ bgcolor: "#F7E8D8" }} />}
                     </TableRow>
                   </Fragment>
                 ))}
@@ -1255,7 +1269,7 @@ export function DeliveryReportPage() {
                     <TableCell align="right" sx={{ fontWeight: 900, color: "#FFFFFF", bgcolor: "#4B2E1F" }}>
                       {totals.totalRecords}
                     </TableCell>
-                    <TableCell sx={{ bgcolor: "#4B2E1F" }} />
+                    {canUpdateDeliveryQuantity && <TableCell sx={{ bgcolor: "#4B2E1F" }} />}
                   </TableRow>
                 )}
               </TableBody>
