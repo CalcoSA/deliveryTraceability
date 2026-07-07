@@ -96,7 +96,7 @@ export function DeliveryReportPage() {
       .toLowerCase();
   const canUpdateDeliveryQuantity =
     user?.roles?.some((role) =>
-      ["operario", "administrador"].includes(normalizeRole(role.nameRole))
+      ["OPERACIONES", "administrador"].includes(normalizeRole(role.nameRole))
     ) ?? false;
 
   const showResponseModal = (severity: ResponseModalSeverity, title: string, message: string) => {
