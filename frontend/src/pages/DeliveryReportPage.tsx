@@ -99,6 +99,11 @@ export function DeliveryReportPage() {
       ["operaciones", "administrador"].includes(normalizeRole(role.nameRole))
     ) ?? false;
 
+  console.log("[QA REPORT] user:", user);
+  console.log("[QA REPORT] roles:", user?.roles);
+  console.log("[QA REPORT] roles normalizados:", user?.roles?.map((role) => normalizeRole(role.nameRole)));
+  console.log("[QA REPORT] puede editar:", canUpdateDeliveryQuantity);
+
   const showResponseModal = (severity: ResponseModalSeverity, title: string, message: string) => {
     setResponseModal({
       open: true,
