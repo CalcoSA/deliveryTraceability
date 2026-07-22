@@ -506,6 +506,7 @@ export function DeliveryReportPage() {
         }
 
         payload = {
+          deliveryQuantity: 0,
           IdAbsenceType: editingAbsenceTypeId,
         };
       }
