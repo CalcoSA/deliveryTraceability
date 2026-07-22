@@ -30,7 +30,8 @@ export interface DeliverySettlementReportFilters {
 }
 
 export interface UpdateDeliveryQuantityRequest {
-  deliveryQuantity: number;
+  deliveryQuantity?: number;
+  IdAbsenceType?: number | null;
 }
 
 export interface UpdateDeliveryQuantityResponse {
