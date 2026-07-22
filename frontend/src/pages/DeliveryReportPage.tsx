@@ -1,4 +1,4 @@
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputAdornment, MenuItem, Paper, Radio, RadioGroup, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import type { DeliveryReportPeriod, DeliverySettlementReport, } from "../models/DeliveryReport";
 import { ResponseModal, type ResponseModalSeverity, } from "../components/ResponseModal";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
@@ -8,11 +8,13 @@ import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import { deliveryReportService } from "../services/deliveryReportService";
+import { absenceTypeService } from "../services/absenceTypeService";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { domiciliaryService } from "../services/domiciliaryService";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { pointSaleService } from "../services/pointSaleService";
 import { Fragment, useEffect, useMemo, useState } from "react";
+import type { AbsenceType } from "../models/DeliveryRecord";
 import { getErrorMessage } from "../services/errorService";
 import type { Domiciliary } from "../models/Domiciliary";
 import type { PointSale } from "../models/PointSale";
@@ -55,6 +57,8 @@ interface PointSaleReportGroup extends ReportTotals {
   domiciliaryGroups: DomiciliaryReportGroup[];
 }
 
+type EditRecordMode = "delivery" | "absence";
+
 const getToday = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -71,12 +75,16 @@ const getFirstDayOfCurrentMonth = () => {
 export function DeliveryReportPage() {
   const [responseModal, setResponseModal] = useState<ResponseModalState>(emptyResponseModal);
   const [editingRow, setEditingRow] = useState<DeliverySettlementReport | null>(null);
+  const [editRecordMode, setEditRecordMode] = useState<EditRecordMode>("delivery");
   const [selectedDomiciliaryId, setSelectedDomiciliaryId] = useState<number>(0);
   const [reportData, setReportData] = useState<DeliverySettlementReport[]>([]);
+  const [editingAbsenceTypeId, setEditingAbsenceTypeId] = useState<number>(0);
   const [selectedPointSaleId, setSelectedPointSaleId] = useState<number>(0);  
   const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth());
   const [loadingDomiciliaries, setLoadingDomiciliaries] = useState(false);
+  const [loadingAbsenceTypes, setLoadingAbsenceTypes] = useState(false);
   const [domiciliaries, setDomiciliaries] = useState<Domiciliary[]>([]);
+  const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
   const [editValidationError, setEditValidationError] = useState("");
   const [loadingPointSales, setLoadingPointSales] = useState(false);
   const [period, setPeriod] = useState<DeliveryReportPeriod>("day");
@@ -165,6 +173,19 @@ export function DeliveryReportPage() {
 
   const getAbsenceSummary = (absenceTypes?: string | null) => {
     return getAbsenceSummaryFromNames(getAbsenceNames(absenceTypes));
+  };
+
+  const loadAbsenceTypes = async () => {
+    try {
+      setLoadingAbsenceTypes(true);
+      const response = await absenceTypeService.getAll();
+      setAbsenceTypes((response.result ?? []).filter((item) => item.statusAbsenceType));
+    } catch (err) {
+      setAbsenceTypes([]);
+      showResponseModal("error", "Error al cargar ausentismos", getErrorMessage(err));
+    } finally {
+      setLoadingAbsenceTypes(false);
+    }
   };
   
   const totals = useMemo<ReportTotals>(() => {
@@ -419,8 +440,19 @@ export function DeliveryReportPage() {
       return;
     }
 
+    const absenceName = getAbsenceNames(item.absenceTypes)[0] ?? "";
+
+    const matchedAbsenceType = absenceTypes.find(
+      (absenceType) =>
+        normalizeRole(absenceType.nameAbsenceType) === normalizeRole(absenceName)
+    );
+
+    const hasAbsence = Number(item.totalAbsences ?? 0) > 0 || absenceName.length > 0;
+
     setEditingRow(item);
-    setEditingQuantity(String(Number(item.totalDeliveryQuantity ?? 0)));
+    setEditRecordMode(hasAbsence ? "absence" : "delivery");
+    setEditingQuantity(hasAbsence ? "" : String(Number(item.totalDeliveryQuantity ?? 0)));
+    setEditingAbsenceTypeId(matchedAbsenceType?.IdAbsenceType ?? 0);
     setEditValidationError("");
     setEditModalOpen(true);
   };
@@ -431,6 +463,8 @@ export function DeliveryReportPage() {
     setEditModalOpen(false);
     setEditingRow(null);
     setEditingQuantity("");
+    setEditingAbsenceTypeId(0);
+    setEditRecordMode("delivery");
     setEditValidationError("");
   };
 
@@ -441,16 +475,39 @@ export function DeliveryReportPage() {
         return;
       }
 
-      const quantity = Number(editingQuantity);
+      let payload: {
+        deliveryQuantity?: number;
+        IdAbsenceType?: number | null;
+      } = {};
 
-      if (!Number.isInteger(quantity)) {
-        setEditValidationError("La cantidad debe ser un número entero.");
-        return;
+      if (editRecordMode === "delivery") {
+        const quantity = Number(editingQuantity);
+
+        if (!Number.isInteger(quantity)) {
+          setEditValidationError("La cantidad debe ser un número entero.");
+          return;
+        }
+
+        if (quantity <= 0) {
+          setEditValidationError("La cantidad de domicilios debe ser mayor a cero.");
+          return;
+        }
+
+        payload = {
+          deliveryQuantity: quantity,
+          IdAbsenceType: null,
+        };
       }
 
-      if (quantity <= 0) {
-        setEditValidationError("La cantidad de domicilios debe ser mayor a cero.");
-        return;
+      if (editRecordMode === "absence") {
+        if (!editingAbsenceTypeId || editingAbsenceTypeId <= 0) {
+          setEditValidationError("Debes seleccionar un tipo de ausentismo.");
+          return;
+        }
+
+        payload = {
+          IdAbsenceType: editingAbsenceTypeId,
+        };
       }
 
       setSavingQuantity(true);
@@ -458,37 +515,25 @@ export function DeliveryReportPage() {
 
       const response = await deliveryReportService.updateDeliveryQuantityFromReport(
         editingRow.IdDeliveryRecord,
-        {
-          deliveryQuantity: quantity,
-        }
+        payload
       );
 
       if (!response.isSuccess || !response.result) {
-        showResponseModal(
-          "warning",
-          "No se pudo actualizar",
-          response.Message || "No fue posible actualizar la cantidad de domicilios."
-        );
+        showResponseModal("warning", "No se pudo actualizar", response.Message || "No fue posible actualizar el registro.");
         return;
       }
 
-      showResponseModal(
-        "success",
-        "Cantidad actualizada",
-        response.Message || "La cantidad de domicilios fue actualizada correctamente."
-      );
+      showResponseModal("success", "Registro actualizado", response.Message || "El registro fue actualizado correctamente.");
 
       setEditModalOpen(false);
       setEditingRow(null);
       setEditingQuantity("");
+      setEditingAbsenceTypeId(0);
+      setEditRecordMode("delivery");
 
       await handleSearchReport();
     } catch (err) {
-      showResponseModal(
-        "error",
-        "Error al actualizar",
-        getErrorMessage(err)
-      );
+      showResponseModal("error", "Error al actualizar", getErrorMessage(err));
     } finally {
       setSavingQuantity(false);
     }
@@ -496,11 +541,7 @@ export function DeliveryReportPage() {
 
   const handleExportReport = () => {
     if (reportData.length === 0) {
-      showResponseModal(
-        "warning",
-        "Sin datos para exportar",
-        "Primero debes consultar el reporte antes de exportarlo."
-      );
+      showResponseModal("warning", "Sin datos para exportar", "Primero debes consultar el reporte antes de exportarlo.");
       return;
     }
 
@@ -803,6 +844,7 @@ export function DeliveryReportPage() {
 
   useEffect(() => {
     loadPointSales();
+    loadAbsenceTypes();
   }, []);
 
   return (
@@ -1184,7 +1226,7 @@ export function DeliveryReportPage() {
                                 <Tooltip
                                   title={
                                     period === "day"
-                                      ? "Editar cantidad de domicilios"
+                                      ? "Editar registro"
                                       : "Solo se puede editar consultando por día"
                                   }
                                 >
@@ -1295,7 +1337,7 @@ export function DeliveryReportPage() {
             fontWeight: 700,
           }}
         >
-          Editar cantidad de domicilios
+          Editar registro de domicilio
         </DialogTitle>
 
         <DialogContent>
@@ -1336,25 +1378,90 @@ export function DeliveryReportPage() {
               <Alert severity="warning">{editValidationError}</Alert>
             )}
 
-            <TextField
-              label="Nueva cantidad de domicilios"
-              type="number"
-              value={editingQuantity}
-              disabled={savingQuantity}
-              fullWidth
-              onChange={(event) => setEditingQuantity(event.target.value)}
-              slotProps={{
-                htmlInput: {
-                  min: 1,
-                  step: 1,
-                },
-              }}
-            />
+            <RadioGroup
+              row
+              value={editRecordMode}
+              onChange={(event) => {
+                const mode = event.target.value as EditRecordMode;
 
-            {editingRow && (
+                setEditRecordMode(mode);
+                setEditValidationError("");
+
+                if (mode === "delivery") {
+                  setEditingAbsenceTypeId(0);
+
+                  if (!editingQuantity) {
+                    setEditingQuantity("1");
+                  }
+                }
+
+                if (mode === "absence") {
+                  setEditingQuantity("");
+                }
+              }}
+            >
+              <FormControlLabel
+                value="delivery"
+                control={<Radio />}
+                label="Domicilios"
+                disabled={savingQuantity}
+              />
+
+              <FormControlLabel
+                value="absence"
+                control={<Radio />}
+                label="Ausentismo"
+                disabled={savingQuantity}
+              />
+            </RadioGroup>
+
+            {editRecordMode === "delivery" && (
+              <TextField
+                label="Nueva cantidad de domicilios"
+                type="number"
+                value={editingQuantity}
+                disabled={savingQuantity}
+                fullWidth
+                onChange={(event) => setEditingQuantity(event.target.value)}
+                slotProps={{
+                  htmlInput: {
+                    min: 1,
+                    step: 1,
+                  },
+                }}
+              />
+            )}
+
+            {editRecordMode === "absence" && (
+              <TextField
+                select
+                label="Tipo de ausentismo"
+                value={editingAbsenceTypeId}
+                disabled={savingQuantity || loadingAbsenceTypes}
+                fullWidth
+                onChange={(event) =>
+                  setEditingAbsenceTypeId(Number(event.target.value))
+                }
+              >
+                <MenuItem value={0}>Selecciona un tipo de ausentismo</MenuItem>
+
+                {absenceTypes.map((item) => (
+                  <MenuItem key={item.IdAbsenceType} value={item.IdAbsenceType}>
+                    {item.nameAbsenceType}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {editingRow && editRecordMode === "delivery" && (
               <Alert severity="info">
                 El valor total se recalculará automáticamente con el valor unitario actual de{" "}
                 {formatCurrency(editingRow.parameterValueSettlement)}.
+              </Alert>
+            )}
+            {editingRow && editRecordMode === "absence" && (
+              <Alert severity="info">
+                Al guardar como ausentismo, la cantidad de domicilios quedará en 0 y la liquidación asociada quedará sin valor.
               </Alert>
             )}
           </Stack>
