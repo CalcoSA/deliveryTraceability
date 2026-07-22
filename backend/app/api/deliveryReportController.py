@@ -43,8 +43,8 @@ def getSettlementReport(startDate: date = Query(...), endDate: date = Query(...)
 @router.put("/settlement/{IdDeliveryRecord}/quantity", response_model=apiResponseDto[UpdateDeliveryQuantityResponseDto])
 def updateDeliveryQuantityFromReport(IdDeliveryRecord: int, request: UpdateDeliveryQuantityRequestDto, payload: dict = Depends(getCurrentPayload), service: IDeliveryReportApplication = Depends(getDeliveryReportApplication)):
     try:
-        logger.info("Actualizando cantidad de domicilios desde reporte | IdDeliveryRecord=%s | deliveryQuantity=%s", IdDeliveryRecord, request.deliveryQuantity)
-        data = service.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=request.deliveryQuantity)
+        logger.info("Actualizando cantidad de domicilios desde reporte | IdDeliveryRecord=%s | deliveryQuantity=%s", IdDeliveryRecord, request.deliveryQuantity, request.IdAbsenceType)
+        data = service.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=request.deliveryQuantity, IdAbsenceType=request.IdAbsenceType)
         logger.info("Cantidad de domicilios actualizada correctamente desde reporte | IdDeliveryRecord=%s | totalValueSettlement=%s", IdDeliveryRecord, data.totalValueSettlement)
         return apiResponseDto(isSuccess=True, Message="Cantidad de domicilios actualizada correctamente.", result=data)
 

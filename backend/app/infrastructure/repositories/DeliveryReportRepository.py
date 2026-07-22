@@ -6,11 +6,12 @@ from app.domain.entities.DeliveryRecord import DeliveryRecord
 from app.domain.entities.AbsenceType import AbsenceType
 from app.domain.entities.Domiciliary import Domiciliary
 from app.domain.entities.pointSale import pointSale
+from app.domain.entities.Parameter import Parameter
 from sqlalchemy.orm import Session, aliased
+from datetime import date, datetime
 from typing import List, Optional
 from sqlalchemy import func, case
 from decimal import Decimal
-from datetime import date
 
 class DeliveryReportRepository(IDeliveryReportRepository):
 
@@ -146,7 +147,7 @@ class DeliveryReportRepository(IDeliveryReportRepository):
 
         return str(periodKey)
     
-    def updateDeliveryQuantityFromReport(self, IdDeliveryRecord: int, deliveryQuantity: int) -> UpdateDeliveryQuantityResponseDto:
+    def updateDeliveryQuantityFromReport(self, IdDeliveryRecord: int, deliveryQuantity: int, IdAbsenceType: Optional[int] = None) -> UpdateDeliveryQuantityResponseDto:
         deliveryRecord = (self.db.query(DeliveryRecord).filter(DeliveryRecord.IdDeliveryRecord == IdDeliveryRecord).first())
 
         if deliveryRecord is None:
@@ -154,12 +155,69 @@ class DeliveryReportRepository(IDeliveryReportRepository):
 
         deliverySettlement = (self.db.query(DeliverySettlement).filter(DeliverySettlement.IdDeliveryRecord == IdDeliveryRecord).first())
 
-        if deliverySettlement is None:
-            raise ValueError("No existe liquidación asociada al registro de domicilio.")
+        if IdAbsenceType is not None:
+            absenceType = (self.db.query(AbsenceType).filter(AbsenceType.IdAbsenceType == IdAbsenceType).first())
 
+            if absenceType is None:
+                raise ValueError("El tipo de ausentismo no existe.")
+
+            if not absenceType.statusAbsenceType:
+                raise ValueError("El tipo de ausentismo está inactivo.")
+
+            deliveryRecord.IdAbsenceType = IdAbsenceType
+            deliveryRecord.deliveryQuantity = 0
+
+            if deliverySettlement is not None:
+                self.db.delete(deliverySettlement)
+
+            self.db.commit()
+            self.db.refresh(deliveryRecord)
+
+            return UpdateDeliveryQuantityResponseDto(
+                IdDeliveryRecord=deliveryRecord.IdDeliveryRecord,
+                deliveryDate=deliveryRecord.deliveryDate,
+                IdPointSale=deliveryRecord.IdPointSale,
+                IdDomiciliary=deliveryRecord.IdDomiciliary,
+                deliveryQuantity=deliveryRecord.deliveryQuantity,
+                IdDeliverySettlement=0,
+                IdParameter=0,
+                parameterNameSettlement="",
+                parameterValueSettlement=Decimal("0"),
+                deliveryQuantitySettlement=0,
+                totalValueSettlement=Decimal("0")
+            )
+
+        deliveryRecord.IdAbsenceType = None
         deliveryRecord.deliveryQuantity = deliveryQuantity
-        deliverySettlement.deliveryQuantitySettlement = deliveryQuantity
-        deliverySettlement.totalValueSettlement = ( deliverySettlement.parameterValueSettlement * deliveryQuantity)
+
+        if deliverySettlement is None:
+            parameter = (self.db.query(Parameter).filter(Parameter.nameParameter == "Costo").first())
+
+            if parameter is None:
+                raise ValueError("No existe el parámetro Costo.")
+
+            parameterValue = Decimal(str(parameter.valueParameter))
+            totalValueSettlement = parameterValue * Decimal(deliveryQuantity)
+
+            deliverySettlement = DeliverySettlement(
+                IdDeliveryRecord=deliveryRecord.IdDeliveryRecord,
+                IdParameter=parameter.IdParameter,
+                parameterNameSettlement=parameter.nameParameter,
+                parameterValueSettlement=parameterValue,
+                deliveryQuantitySettlement=deliveryQuantity,
+                totalValueSettlement=totalValueSettlement,
+                createdBySettlement=deliveryRecord.createdByDeliveryRecord,
+                createdAtSettlement=datetime.now(),
+                updatedBySettlement=None,
+                updatedAtSettlement=None
+            )
+
+            self.db.add(deliverySettlement)
+            self.db.flush()
+
+        else:
+            deliverySettlement.deliveryQuantitySettlement = deliveryQuantity
+            deliverySettlement.totalValueSettlement = (deliverySettlement.parameterValueSettlement * deliveryQuantity)
 
         self.db.commit()
         self.db.refresh(deliveryRecord)
