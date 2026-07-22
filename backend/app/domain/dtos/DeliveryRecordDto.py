@@ -60,7 +60,8 @@ class DeliveryRecordBulkCreateDto(BaseModel):
     records: List[DeliveryRecordBulkItemCreateDto]
 
 class UpdateDeliveryQuantityRequestDto(BaseModel):
-    deliveryQuantity: int = Field(..., ge=0)
+    deliveryQuantity: Optional[int] = Field(None, ge=0)
+    IdAbsenceType: Optional[int] = None
 
 class UpdateDeliveryQuantityResponseDto(BaseModel):
     IdDeliveryRecord: int
@@ -68,9 +69,10 @@ class UpdateDeliveryQuantityResponseDto(BaseModel):
     IdPointSale: int
     IdDomiciliary: int
     deliveryQuantity: int
-    IdDeliverySettlement: int
-    IdParameter: int
-    parameterNameSettlement: str
-    parameterValueSettlement: Decimal
-    deliveryQuantitySettlement: int
-    totalValueSettlement: Decimal
+    IdAbsenceType: Optional[int] = None
+    IdDeliverySettlement: Optional[int] = None
+    IdParameter: Optional[int] = None
+    parameterNameSettlement: Optional[str] = None
+    parameterValueSettlement: Optional[Decimal] = None
+    deliveryQuantitySettlement: Optional[int] = None
+    totalValueSettlement: Decimal = Decimal("0")

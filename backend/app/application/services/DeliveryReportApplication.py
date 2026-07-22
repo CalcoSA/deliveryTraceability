@@ -23,12 +23,18 @@ class DeliveryReportApplication(IDeliveryReportApplication):
 
         return self.deliveryReportRepository.getSettlementReport(startDate=startDate, endDate=endDate, period=cleanPeriod, IdPointSale=IdPointSale, IdDomiciliary=IdDomiciliary)
     
-    def updateDeliveryQuantityFromReport(self, IdDeliveryRecord: int, deliveryQuantity: int) -> UpdateDeliveryQuantityResponseDto:
+    def updateDeliveryQuantityFromReport(self, IdDeliveryRecord: int, deliveryQuantity: Optional[int], IdAbsenceType: Optional[int] = None) -> UpdateDeliveryQuantityResponseDto:
 
         if IdDeliveryRecord <= 0:
             raise ValueError("El identificador del registro de domicilio no es válido.")
 
-        if deliveryQuantity < 0:
-            raise ValueError("La cantidad de domicilios no puede ser menor que cero.")
+        if IdAbsenceType is not None:
+            return self.deliveryReportRepository.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=0, IdAbsenceType=IdAbsenceType)
 
-        return self.deliveryReportRepository.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=deliveryQuantity)
+        if deliveryQuantity is None:
+            raise ValueError("El número de domicilios es obligatorio cuando no hay ausentismo.")
+
+        if deliveryQuantity <= 0:
+            raise ValueError("El número de domicilios debe ser mayor a cero.")
+
+        return self.deliveryReportRepository.updateDeliveryQuantityFromReport(IdDeliveryRecord=IdDeliveryRecord, deliveryQuantity=deliveryQuantity, IdAbsenceType=None)
