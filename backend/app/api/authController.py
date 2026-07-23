@@ -121,19 +121,6 @@ def me(payload: dict = Depends(getCurrentPayload), service: IAuthApplication = D
 
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al obtener el usuario autenticado.")
-    
-@router.post("/point-sale/request-code", response_model=apiResponseDto[dict])
-def requestPointSaleEmailCode(data: PointSaleEmailCodeRequestDto, service: IAuthApplication = Depends(getAuthApplication)):
-    try:
-        service.requestPointSaleEmailCode(str(data.emailPointSale))
-        return apiResponseDto(isSuccess=True, Message="Código enviado correctamente.", result={})
-
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al enviar el código de acceso.")
-
 
 @router.post("/point-sale/request-code", response_model=apiResponseDto[dict])
 def requestPointSaleEmailCode(data: PointSaleEmailCodeRequestDto, service: IAuthApplication = Depends(getAuthApplication)):
