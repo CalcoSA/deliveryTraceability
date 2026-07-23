@@ -135,18 +135,21 @@ def requestPointSaleEmailCode(data: PointSaleEmailCodeRequestDto, service: IAuth
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al enviar el código de acceso.")
 
 
-@router.post("/point-sale/verify-code", response_model=apiResponseDto[AuthResponseDto])
-def verifyPointSaleEmailCode(data: PointSaleEmailCodeVerifyDto, service: IAuthApplication = Depends(getAuthApplication)):
+@router.post("/point-sale/request-code", response_model=apiResponseDto[dict])
+def requestPointSaleEmailCode(data: PointSaleEmailCodeRequestDto, service: IAuthApplication = Depends(getAuthApplication)):
     try:
-        result = service.verifyPointSaleEmailCode(str(data.emailPointSale), data.code)
-
-        return apiResponseDto(isSuccess=True, Message="Inicio de sesión correcto.", result=result)
+        service.requestPointSaleEmailCode(str(data.emailPointSale))
+        return apiResponseDto(isSuccess=True, Message="Código enviado correctamente.", result={})
 
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        logger.exception("Error inesperado al enviar código de acceso PDV. Email=%s", data.emailPointSale)
 
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al validar el código de acceso.")
+        detail = "Error al enviar el código de acceso."
+
+        if APP_ENV in ["development", "qa", "local"]:
+            detail = f"Error al enviar el código de acceso: {str(e)}"
+
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
