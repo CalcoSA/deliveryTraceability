@@ -542,73 +542,103 @@ export function DeliveryReportPage() {
 
   const handleExportReport = () => {
     if (reportData.length === 0) {
-      showResponseModal("warning", "Sin datos para exportar", "Primero debes consultar el reporte antes de exportarlo.");
+      showResponseModal(
+        "warning",
+        "Sin datos para exportar",
+        "Primero debes consultar el reporte antes de exportarlo."
+      );
       return;
     }
 
     const columns = [
       "Periodo",
-      "Punto de venta",
       "Domiciliario",
       "Documento",
-      "Registrado por",
+      "Punto de venta",
       parameterColumnName,
       "Domicilios",
       "Ausentismo",
-      "Cant. ausentismos",
       "Valor total",
-      "Registros",
     ];
 
     const rows: (string | number)[][] = [];
 
     rows.push(["REPORTE DE DOMICILIOS"]);
     rows.push([`Fecha de generación: ${new Date().toLocaleString("es-CO")}`]);
-    rows.push([`Filtros: ${startDate} a ${endDate} | Periodo: ${getPeriodLabel(period)}`,]);
+    rows.push([
+      `Filtros: ${startDate} a ${endDate} | Periodo: ${getPeriodLabel(period)}`,
+    ]);
     rows.push([]);
     rows.push(columns);
 
     const groupHeaderRows: number[] = [];
     const subtotalRows: number[] = [];
 
-    groupedReportData.forEach((pointSaleGroup) => {
+    const exportDomiciliaryGroups = [...reportData]
+      .sort((a, b) => {
+        const domiciliaryCompare = `${a.nameDomiciliary} ${a.documentDomiciliary}`.localeCompare(
+          `${b.nameDomiciliary} ${b.documentDomiciliary}`
+        );
+
+        if (domiciliaryCompare !== 0) return domiciliaryCompare;
+
+        const pointSaleCompare = `${a.namePointSale} ${a.codePointSale}`.localeCompare(
+          `${b.namePointSale} ${b.codePointSale}`
+        );
+
+        if (pointSaleCompare !== 0) return pointSaleCompare;
+
+        return a.periodKey.localeCompare(b.periodKey);
+      })
+      .reduce<DomiciliaryReportGroup[]>((acc, item) => {
+        const domiciliaryGroupKey = String(item.IdDomiciliary);
+
+        let domiciliaryGroup = acc.find(
+          (current) => current.groupKey === domiciliaryGroupKey
+        );
+
+        if (!domiciliaryGroup) {
+          domiciliaryGroup = {
+            groupKey: domiciliaryGroupKey,
+            IdDomiciliary: item.IdDomiciliary,
+            documentDomiciliary: item.documentDomiciliary,
+            nameDomiciliary: item.nameDomiciliary,
+            rows: [],
+            totalDeliveryQuantity: 0,
+            totalAbsences: 0,
+            totalValueSettlement: 0,
+            totalRecords: 0,
+          };
+
+          acc.push(domiciliaryGroup);
+        }
+
+        domiciliaryGroup.rows.push(item);
+        domiciliaryGroup.totalDeliveryQuantity += Number(item.totalDeliveryQuantity ?? 0);
+        domiciliaryGroup.totalAbsences += Number(item.totalAbsences ?? 0);
+        domiciliaryGroup.totalValueSettlement += Number(item.totalValueSettlement ?? 0);
+        domiciliaryGroup.totalRecords += Number(item.totalRecords ?? 0);
+
+        return acc;
+      }, []);
+
+    exportDomiciliaryGroups.forEach((domiciliaryGroup) => {
       groupHeaderRows.push(rows.length);
-      rows.push([`Punto de venta: ${pointSaleGroup.codePointSale} - ${pointSaleGroup.namePointSale}`]);
 
-      pointSaleGroup.domiciliaryGroups.forEach((domiciliaryGroup) => {
-        groupHeaderRows.push(rows.length);
-        rows.push([`Domiciliario: ${domiciliaryGroup.nameDomiciliary} - ${domiciliaryGroup.documentDomiciliary}`]);
+      rows.push([
+        `Domiciliario: ${domiciliaryGroup.nameDomiciliary} - ${domiciliaryGroup.documentDomiciliary}`,
+      ]);
 
-        domiciliaryGroup.rows.forEach((item) => {
-          rows.push([
-            item.periodLabel,
-            `${item.codePointSale} - ${item.namePointSale}`,
-            item.nameDomiciliary,
-            item.documentDomiciliary,
-            item.createdByUsers || "Sin información",
-            Number(item.parameterValueSettlement ?? 0),
-            Number(item.totalDeliveryQuantity ?? 0),
-            getAbsenceSummary(item.absenceTypes),
-            Number(item.totalAbsences ?? 0),
-            Number(item.totalValueSettlement ?? 0),
-            Number(item.totalRecords ?? 0),
-          ]);
-        });
-
-        subtotalRows.push(rows.length);
-
+      domiciliaryGroup.rows.forEach((item) => {
         rows.push([
-          "",
-          "",
-          `Subtotal domiciliario: ${domiciliaryGroup.nameDomiciliary}`,
-          domiciliaryGroup.documentDomiciliary,
-          "",
-          "",
-          domiciliaryGroup.totalDeliveryQuantity,
-          "",
-          domiciliaryGroup.totalAbsences,
-          domiciliaryGroup.totalValueSettlement,
-          domiciliaryGroup.totalRecords,
+          item.periodLabel,
+          item.nameDomiciliary,
+          item.documentDomiciliary,
+          `${item.codePointSale} - ${item.namePointSale}`,
+          Number(item.parameterValueSettlement ?? 0),
+          Number(item.totalDeliveryQuantity ?? 0),
+          getAbsenceSummary(item.absenceTypes),
+          Number(item.totalValueSettlement ?? 0),
         ]);
       });
 
@@ -616,16 +646,13 @@ export function DeliveryReportPage() {
 
       rows.push([
         "",
-        `Subtotal punto de venta: ${pointSaleGroup.codePointSale} - ${pointSaleGroup.namePointSale}`,
+        `Subtotal domiciliario: ${domiciliaryGroup.nameDomiciliary}`,
+        domiciliaryGroup.documentDomiciliary,
         "",
         "",
+        domiciliaryGroup.totalDeliveryQuantity,
         "",
-        "",
-        pointSaleGroup.totalDeliveryQuantity,
-        "",
-        pointSaleGroup.totalAbsences,
-        pointSaleGroup.totalValueSettlement,
-        pointSaleGroup.totalRecords,
+        domiciliaryGroup.totalValueSettlement,
       ]);
 
       rows.push([]);
@@ -635,16 +662,13 @@ export function DeliveryReportPage() {
 
     rows.push([
       "",
-      "",
       "TOTAL GENERAL",
       "",
       "",
       "",
       totals.totalDeliveryQuantity,
       "",
-      totals.totalAbsences,
       totals.totalValueSettlement,
-      totals.totalRecords,
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
@@ -652,16 +676,13 @@ export function DeliveryReportPage() {
 
     worksheet["!cols"] = [
       { wch: 16 },
-      { wch: 32 },
       { wch: 34 },
       { wch: 16 },
-      { wch: 24 },
+      { wch: 32 },
       { wch: 16 },
       { wch: 12 },
       { wch: 32 },
       { wch: 18 },
-      { wch: 18 },
-      { wch: 12 },
     ];
 
     worksheet["!rows"] = rows.map((_, index) => {
@@ -681,7 +702,7 @@ export function DeliveryReportPage() {
     ];
 
     worksheet["!autofilter"] = {
-      ref: `A5:K5`,
+      ref: "A5:H5",
     };
 
     const titleStyle = {
@@ -790,7 +811,7 @@ export function DeliveryReportPage() {
 
     applyStyleToRow(totalRowIndex, totalStyle);
 
-    const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:J1");
+    const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:H1");
 
     for (let rowIndex = 5; rowIndex <= range.e.r; rowIndex++) {
       if (
@@ -804,9 +825,9 @@ export function DeliveryReportPage() {
       for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
         const cell = getCell(rowIndex, columnIndex);
 
-        if (columnIndex === 5 || columnIndex === 8) {
+        if (columnIndex === 4 || columnIndex === 7) {
           cell.s = currencyStyle;
-        } else if ([6, 7, 9].includes(columnIndex)) {
+        } else if (columnIndex === 5) {
           cell.s = numberStyle;
         } else {
           cell.s = normalStyle;
@@ -815,26 +836,27 @@ export function DeliveryReportPage() {
     }
 
     subtotalRows.forEach((rowIndex) => {
-      getCell(rowIndex, 5).s = currencyStyle;
-      getCell(rowIndex, 6).s = subtotalStyle;
-      getCell(rowIndex, 7).s = subtotalStyle;
-      getCell(rowIndex, 8).s = {
+      getCell(rowIndex, 4).s = subtotalStyle;
+      getCell(rowIndex, 5).s = {
+        ...subtotalStyle,
+        alignment: { horizontal: "right", vertical: "center" },
+      };
+      getCell(rowIndex, 7).s = {
         ...subtotalStyle,
         numFmt: '"$"#,##0',
         alignment: { horizontal: "right", vertical: "center" },
       };
-      getCell(rowIndex, 9).s = subtotalStyle;
     });
 
-    getCell(totalRowIndex, 5).s = totalStyle;
-    getCell(totalRowIndex, 6).s = totalStyle;
-    getCell(totalRowIndex, 7).s = totalStyle;
-    getCell(totalRowIndex, 8).s = {
+    getCell(totalRowIndex, 5).s = {
+      ...totalStyle,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+    getCell(totalRowIndex, 7).s = {
       ...totalStyle,
       numFmt: '"$"#,##0',
       alignment: { horizontal: "right", vertical: "center" },
     };
-    getCell(totalRowIndex, 9).s = totalStyle;
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte domicilios");
 

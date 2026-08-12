@@ -45,11 +45,14 @@ const getToday = () => {
 
 export function DeliveryRegistrationPage() {
   const [responseModal, setResponseModal] = useState<ResponseModalState>(emptyResponseModal);
+  const [checkingExistingRecords, setCheckingExistingRecords] = useState(false);
   const [selectedPointSaleId, setSelectedPointSaleId] = useState<number>(0);
   const [loadingDomiciliaries, setLoadingDomiciliaries] = useState(false);
   const [loadingAbsenceTypes, setLoadingAbsenceTypes] = useState(false);
   const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
+  const [existingRecordsCount, setExistingRecordsCount] = useState(0);
   const [loadingPointSales, setLoadingPointSales] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [rows, setRows] = useState<DomiciliaryDeliveryRow[]>([]);
   const [pointSales, setPointSales] = useState<PointSale[]>([]);
   const [deliveryDate, setDeliveryDate] = useState(getToday());
@@ -139,18 +142,61 @@ export function DeliveryRegistrationPage() {
     }
   };
 
+  const checkExistingDeliveryRecords = async (dateValue: string, idPointSale: number) => {
+    try {
+      setExistingRecordsCount(0);
+      setAlreadyRegistered(false);
+
+      if (!dateValue || !idPointSale || idPointSale <= 0) {
+        return;
+      }
+
+      setCheckingExistingRecords(true);
+
+      const response = await deliveryRecordService.getAll({
+        deliveryDate: dateValue,
+        IdPointSale: idPointSale,
+      });
+
+      const existingRecords = response.result ?? [];
+
+      setExistingRecordsCount(existingRecords.length);
+      setAlreadyRegistered(existingRecords.length > 0);
+    } catch (err) {
+      setExistingRecordsCount(0);
+      setAlreadyRegistered(false);
+      showResponseModal("error", "Error al validar registros existentes", getErrorMessage(err));
+    } finally {
+      setCheckingExistingRecords(false);
+    }
+  };
+
   const handleClearForm = () => {
     if (saving) return;
+
     setDeliveryDate(getToday());
     setSelectedPointSaleId(0);
     setRows([]);
     setValidationError("");
+    setExistingRecordsCount(0);
+    setAlreadyRegistered(false);
   };
 
-  const handleChangePointSale = (idPointSale: number) => {
+  const handleChangePointSale = async (idPointSale: number) => {
     setSelectedPointSaleId(idPointSale);
     setValidationError("");
-    loadDomiciliariesByPointSale(idPointSale);
+    setExistingRecordsCount(0);
+    setAlreadyRegistered(false);
+
+    await loadDomiciliariesByPointSale(idPointSale);
+    await checkExistingDeliveryRecords(deliveryDate, idPointSale);
+  };
+
+  const handleChangeDeliveryDate = async (dateValue: string) => {
+    setDeliveryDate(dateValue);
+    setValidationError("");
+
+    await checkExistingDeliveryRecords(dateValue, selectedPointSaleId);
   };
 
   const updateRowQuantity = (idDomiciliary: number, value: string) => {
@@ -173,6 +219,9 @@ export function DeliveryRegistrationPage() {
     }
     if (!selectedPointSaleId || selectedPointSaleId <= 0) {
       return "Debes seleccionar un punto de venta.";
+    }
+    if (alreadyRegistered) {
+      return "Este punto de venta ya fue diligenciado para la fecha seleccionada.";
     }
     if (rows.length === 0) {
       return "El punto de venta seleccionado no tiene domiciliarios activos.";
@@ -311,7 +360,7 @@ export function DeliveryRegistrationPage() {
               value={deliveryDate}
               disabled={saving}
               fullWidth
-              onChange={(event) => setDeliveryDate(event.target.value)}
+              onChange={(event) => handleChangeDeliveryDate(event.target.value)}
               slotProps={{
                 inputLabel: {
                   shrink: true,
@@ -384,7 +433,7 @@ export function DeliveryRegistrationPage() {
                 )
               }
               onClick={handleSaveDeliveryRecords}
-              disabled={saving || loadingDomiciliaries || rows.length === 0}
+              disabled={saving || loadingDomiciliaries || checkingExistingRecords || alreadyRegistered || rows.length === 0}
               sx={{
                 minWidth: { xs: "100%", md: 190 },
                 height: 56,
@@ -400,30 +449,33 @@ export function DeliveryRegistrationPage() {
               {saving ? "Guardando..." : "Guardar registros"}
             </Button>
           </Stack>
-
           {rows.length > 0 && (
-            <Stack
-              sx={{
-                display: "flex",
-                flexDirection: "row",
-                gap: 1,
-                alignItems: "center",
-              }}
-            >
+            <Stack sx={{ display: "flex", flexDirection: "row", gap: 1, alignItems: "center", }}>
               <Chip
-                label={`${completedRows} de ${rows.length} diligenciados`}
+                label={
+                  alreadyRegistered
+                    ? `${existingRecordsCount} registro(s) ya diligenciados`
+                    : `${completedRows} de ${rows.length} diligenciados`
+                }
                 size="small"
                 sx={{
                   bgcolor:
-                    completedRows === rows.length ? "#E8F5E9" : "#FFF4E5",
+                    alreadyRegistered || completedRows === rows.length
+                      ? "#E8F5E9"
+                      : "#FFF4E5",
                   color:
-                    completedRows === rows.length ? "#2E7D32" : "#ED6C02",
+                    alreadyRegistered || completedRows === rows.length
+                      ? "#2E7D32"
+                      : "#ED6C02",
                   fontWeight: 600,
                 }}
               />
-
               <Typography sx={{ color: "#6B4A3A", fontSize: 14 }}>
-                Debes ingresar domicilios o marcar descanso para todos.
+                {checkingExistingRecords
+                  ? "Validando si ya existen registros para esta fecha y punto de venta..."
+                  : alreadyRegistered
+                    ? "Este punto de venta ya fue diligenciado para la fecha seleccionada."
+                    : "Debes ingresar domicilios o marcar descanso para todos."}
               </Typography>
             </Stack>
           )}
@@ -484,7 +536,7 @@ export function DeliveryRegistrationPage() {
                     <TextField
                       label="Domicilios"
                       value={item.deliveryQuantity}
-                      disabled={saving || Boolean(item.IdAbsenceType)}
+                      disabled={saving || alreadyRegistered || Boolean(item.IdAbsenceType)}
                       fullWidth
                       size="small"
                       placeholder={item.IdAbsenceType ? "0" : "Ej: 10"}
@@ -501,7 +553,7 @@ export function DeliveryRegistrationPage() {
                       value={item.IdAbsenceType ?? 0}
                       fullWidth
                       size="small"
-                      disabled={saving || loadingAbsenceTypes}
+                      disabled={saving || loadingAbsenceTypes || alreadyRegistered}
                       onChange={(event) => {
                         const value = Number(event.target.value);
 
