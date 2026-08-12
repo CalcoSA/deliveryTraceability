@@ -44,3 +44,9 @@ export interface AbsenceType {
   nameAbsenceType: string;
   statusAbsenceType: boolean;
 }
+
+export interface DeliveryRecordFilters {
+  deliveryDate?: string;
+  IdPointSale?: number;
+  IdDomiciliary?: number;
+}
