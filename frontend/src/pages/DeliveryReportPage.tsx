@@ -576,17 +576,17 @@ export function DeliveryReportPage() {
 
     const exportDomiciliaryGroups = [...reportData]
       .sort((a, b) => {
-        const domiciliaryCompare = `${a.nameDomiciliary} ${a.documentDomiciliary}`.localeCompare(
-          `${b.nameDomiciliary} ${b.documentDomiciliary}`
-        );
-
-        if (domiciliaryCompare !== 0) return domiciliaryCompare;
-
         const pointSaleCompare = `${a.namePointSale} ${a.codePointSale}`.localeCompare(
           `${b.namePointSale} ${b.codePointSale}`
         );
 
         if (pointSaleCompare !== 0) return pointSaleCompare;
+
+        const domiciliaryCompare = `${a.nameDomiciliary} ${a.documentDomiciliary}`.localeCompare(
+          `${b.nameDomiciliary} ${b.documentDomiciliary}`
+        );
+
+        if (domiciliaryCompare !== 0) return domiciliaryCompare;
 
         return a.periodKey.localeCompare(b.periodKey);
       })
